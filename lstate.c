@@ -120,7 +120,7 @@ void main(void)
   int fH = Open("regs.bin", O_RDONLY);
 
   //debug set_watchpoint read_io 0x2E
-  //InPort(0x2E); PC = 0x13B2, 0x02CF
+  //InPort(0x2E); // PC = 0x13B2, 0x02CF
   
   Read(fH, &regs, sizeof(Regs));
   Close(fH);
@@ -140,7 +140,7 @@ void main(void)
   printf(", de2="); PrintHex(regs.de2);
   printf(", hl2="); PrintHex(regs.hl2);
 
-  getchar();
+  //getchar();
 
   Screen(2);
 
@@ -156,7 +156,126 @@ void main(void)
   // Close  
   Close(fH);
   
-  getchar();
+  //getchar();
+  
+  // Load page 0 (0000-3FFFh) of game in 0x8000, segment 10
+  fH = Open("ram.bin", O_RDONLY);
+  
+  //InPort(0x2E); // DEBUG
+  OutPort(0xFE, 10); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
+  Read(fH, (void*)0x8000, 16*1024);
+
+  // Load page 1 (4000-7FFFh) of game in 0x8000, segment 11
+  //InPort(0x2E); // DEBUG
+  OutPort(0xFE, 11);
+  Read(fH, (void*)0x8000, 16*1024);
+
+  // Load page 2 (8000-BFFF) of game in 0x8000, segment 12
+  //InPort(0x2E); // DEBUG
+  OutPort(0xFE, 12);
+  Read(fH, (void*)0x8000, 16*1024);
+  
+  // Load page 3 (C000-FFFF) of game in 0x8000, segment 13
+  //InPort(0x2E); // DEBUG
+  OutPort(0xFE, 13);
+  Read(fH, (void*)0x8000, 16*1024);
+
+  Close(fH);
+  
+  // Put page 3 of the game in our page 3, and so on.
+  InPort(0x2E); // DEBUG
+
+  //OutPort(0xFF, 13); // PROBLEMAAAAAAAAAAAAAAAA. Nuestra (.COM) pila está en 0xD4CD
+  __asm
+  ld a, #13
+  out (0xFF), a
+
+  ld a, #12
+  out (0xFE), a
+
+  ld a, #11
+  out (0xFD), a
+
+ __endasm;
+
+  // Patch the original code on its page 3
+  
+  
+  // Set a JP close to the end
+  // Example:   JP 0x0416 --> C3, 16, 04
+  // PC = 0x8604
+  
+  // LD A, CF --> 
+  // OUT (0xD0), A --> D3, D0
+  
+  // ld a,0xF1 --> 3e f1
+  
+  ptr = (unsigned char*)0xCF00;
+  ptr[0] = 0x3E;
+  ptr[1] = 10; // LD A, 10
+  
+  ptr[2] = 0xD3;
+  ptr[3] = 0xFC; // OUT (0xFC), A
+
+
+  ptr[4] = 0xC3;
+  ptr[5] = 0x04;
+  ptr[6] = 0x86; // JP 0x8604
+  
+  __asm
+  ld sp, #0x0fe3
+  
+  ld bc, #0xCF00 // return address
+  push bc
+
+  ld bc, #0xffa4 // af
+  push bc
+  ld bc, #0x0000 // bc
+  push bc
+  ld bc, #0x184e // de
+  push bc
+  ld bc, #0x0000 // hl
+  push bc
+  ld bc, #0x92e3 // ix
+  push bc
+  ld bc, #0x85c1 // iy
+  push bc
+  
+  pop iy
+  pop ix
+  pop hl
+  pop de
+  pop bc
+  pop af
+  ret
+
+  //jp 0xCF00
+ __endasm;
+  
+  
+  
+  
+  
+  
+  
+  
+
+/*af      =       0xffa4
+bc      =       0x0000
+de      =       0x184e
+hl      =       0x0000
+ix      =       0x92e3
+iy      =       0x85c1
+pc      =       0x8604
+sp      =       0x0fe3
+af2     =       0x0a0a
+bc2     =       0x00ff
+de2     =       0x8fff
+hl2     =       0xe1b5*/
+
+  
+  
+  
 
   // Exit
   Screen(1);
