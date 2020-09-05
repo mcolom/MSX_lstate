@@ -2,5 +2,5 @@ Fusion-C-v1.2/
 *.png
 *.xml
 info.txt
-ram.bin
-vram.bin
+*.bin
+

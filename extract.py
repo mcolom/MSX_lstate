@@ -22,6 +22,27 @@ import base64, zlib
 import os
 import sys
 
+def get_reg(root, name):
+    '''
+    Read a register's value given its name
+    '''
+    path = f"machine/cpu/z80/regs/{name}"
+    val = root.findall(path)[0].text
+    if val == 'true':
+        return True
+    if val == 'false':
+        return True
+    return int(val)
+
+def print_regs(regs):
+    for name, value in regs.items():
+        if type(value) == int:
+            print(f"{name}\t=\t0x{value:04x}")
+        else:
+            print(f"{name}\t=\t{value}")
+            
+
+
 
 
 parser = argparse.ArgumentParser()
@@ -34,7 +55,7 @@ tree = ET.parse('madmix.xml')
 root = tree.getroot()
 
 #ram = root.findall("./machine/config/device[@type='Ram']")
-ram = root.findall("./machine/config/device[@type='Ram']/ram/ram[@encoding='gz-base64']")
+ram = root.findall("machine/config/device[@type='Ram']/ram/ram[@encoding='gz-base64']")
 ram = ram[0]
 ram_base64 = ram.text
 
@@ -45,7 +66,7 @@ with open("ram.bin", "wb") as f:
 
 ##########
 
-vram = root.findall("./machine/config/device[@type='VDP']/vram/data[@encoding='gz-base64']")
+vram = root.findall("machine/config/device[@type='VDP']/vram/data[@encoding='gz-base64']")
 vram = vram[0]
 vram_base64 = vram.text
 
@@ -53,4 +74,29 @@ decoded_data = zlib.decompress(base64.b64decode(vram_base64))
 
 with open("vram.bin", "wb") as f:
     f.write(decoded_data)
+
+##########
+
+
+# Read registers
+reg_names = ['af', 'bc', 'de', 'hl', \
+             'ix', 'iy', \
+             'pc', 'sp', \
+             'af2', 'bc2', 'de2', 'hl2']
+regs = {}
+for name in reg_names:
+    regs[name] = get_reg(root, name)
+
+print_regs(regs)
+
+# Save registers
+with open("regs.bin", "wb") as f:
+    for name in reg_names:
+        value = regs[name]
+        z80_word = int.to_bytes(value, length=2, byteorder='little')
+        f.write(z80_word)
+
+        
+        
+
 
