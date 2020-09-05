@@ -22,11 +22,55 @@ ret
 __endasm;
 }
 
-// Warning: execution fails when the buffer is put inside main (stack overflow?)
+// Warning: execution fails when the buffers are put inside main (stack overflow?)
 char buffer[1024];
+
+typedef struct {
+    unsigned int af;
+    unsigned int bc;
+    unsigned int de;
+    unsigned int hl;
+    unsigned int ix;
+    unsigned int iy;
+    unsigned int pc;
+    unsigned int sp;
+    unsigned int af2;
+    unsigned int bc2;
+    unsigned int de2;
+    unsigned int hl2;
+} Regs;
+
+Regs regs;
+
+
+void init() {
+    // It's mandatory to do this to use files!
+    FCBs();
+}
+
+int open_file(const char *filename) {
+    int fH = Open(filename, O_RDONLY);
+    if (fH < 0) {
+        printf("File not found: %s\r\n", filename);
+    }
+    return fH;
+}
+
+void delay() {
+    printf("START delay...\r\n");
+    for (unsigned int i = 0; i < 60000; i++) {
+        for (unsigned int j = 0; j < 1; j++) {
+          __asm
+          nop
+         __endasm;
+        }
+    }
+    printf("END delay...\r\n");
+}
 
 void main(void) 
 {
+  init();
 
   printf("Load MSX1 state\r\n\r\n");
   
@@ -40,7 +84,7 @@ void main(void)
   printf("\r\n");
   
   // Secondary slot reg
-  unsigned char *ptr = 0xFFFF;
+  unsigned char *ptr = (unsigned char*)0xFFFF;
   unsigned char val = *ptr;
   unsigned char val_inv = val ^ 255;
 
@@ -69,45 +113,53 @@ void main(void)
         #FF (write)	Mapper segment for page 3 (#C000-#FFFF)
   */
   
+  // Read registers    
+  
 
+  
+  int fH = Open("regs.bin", O_RDONLY);
+
+  //debug set_watchpoint read_io 0x2E
+  //InPort(0x2E); PC = 0x13B2, 0x02CF
+  
+  Read(fH, &regs, sizeof(Regs));
+  Close(fH);
+  
+  printf("af=");   PrintHex(regs.af);
+  printf(", bc="); PrintHex(regs.bc);
+  printf(", de="); PrintHex(regs.de);
+  printf(", hl="); PrintHex(regs.hl);
+  //
+  printf(", ix="); PrintHex(regs.ix);
+  printf(", iy="); PrintHex(regs.iy);
+  printf(", pc="); PrintHex(regs.pc);
+  printf(", sp="); PrintHex(regs.sp);
+  //
+  printf(", af2="); PrintHex(regs.af2);
+  printf(", bc2="); PrintHex(regs.bc2);
+  printf(", de2="); PrintHex(regs.de2);
+  printf(", hl2="); PrintHex(regs.hl2);
 
   getchar();
 
   Screen(2);
-  
-  // It's mandatory to do this to use files!
-  FCBlist *FCB = FCBs();
-  
+
   // Open
-  int fH = Open("vram.bin", O_RDONLY);
+  fH = Open("vram.bin", O_RDONLY);
   
-  // Read
-  //int start_vram = 0;
+  // Read to copy to VRAM
   for (int start_vram = 0; start_vram < 16*1024; start_vram += 1024) {
-      printf("start_vram=%d\r\n", start_vram);
-      Read(fH, buffer, 1024);
-      printf("Done read\r\n");
-      
-      printf("Copy to start_vram=%d\r\n", start_vram);
+      Read(fH, buffer, 1024);      
       CopyRamToVram(buffer, start_vram, 1024);
-      printf("Done CopyRamToVram\r\n");
-      
-      printf("\r\n");
   }
   
-  //ensamblador();
-  printf("El valor es fH=%d\r\n", fH);
-  
-  //CopyRamToVram(void *SrcRamAddress, unsigned int DestVramAddress, unsigned int Length);
-  
-  
-  printf("Cerrando...\r\n");
+  // Close  
   Close(fH);
-  printf("Fichero cerrado\r\n");
   
   getchar();
+
+  // Exit
   Screen(1);
-  
   //Exit(0);
 }
  
