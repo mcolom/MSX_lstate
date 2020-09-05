@@ -30,6 +30,49 @@ void main(void)
 
   printf("Load MSX1 state\r\n\r\n");
   
+  // Primary slot reg
+  unsigned char b = InPort(0xA8);
+  printf("Primary slot reg (0xA8)\r\n");
+  printf("Page 0, 0000-3FFF: %d\r\n",  b & 0b00000011      );
+  printf("Page 1, 4000-7FFF: %d\r\n", (b & 0b00001100) >> 2);
+  printf("Page 2, 8000-BFFF: %d\r\n", (b & 0b00110000) >> 4);
+  printf("Page 3, C000-FFFF: %d\r\n", (b & 0b11000000) >> 6);
+  printf("\r\n");
+  
+  // Secondary slot reg
+  unsigned char *ptr = 0xFFFF;
+  unsigned char val = *ptr;
+  unsigned char val_inv = val ^ 255;
+
+  // http://map.grauw.nl/resources/msx_io_ports.php#subslot
+  printf("Secondary slot reg (0xFFFF)\r\n");
+  printf("Page 0, 0000-3FFF: subslot %d\r\n",  val_inv & 0b00000011      );
+  printf("Page 1, 4000-7FFF: subslot %d\r\n", (val_inv & 0b00001100) >> 2);
+  printf("Page 2, 8000-BFFF: subslot %d\r\n", (val_inv & 0b00110000) >> 4);
+  printf("Page 3, C000-FFFF: subslot %d\r\n", (val_inv & 0b11000000) >> 6);
+  printf("\r\n");
+  
+  // Memory mapper regs
+  // https://www.msx.org/wiki/Memory_Mapper
+  /*
+    The MSX2 BIOS initializes memory mappers by setting up the following configuration:
+
+    Segment 3 is set on page 0 (0000-3FFFh).
+    Segment 2 is set on page 1 (4000-7FFFh).
+    Segment 1 is set on page 2 (8000-BFFFh).
+    Segment 0 is set on page 3 (C000-FFFFh).
+    For software unaware of memory mappers, the default configuration above appears like a regular 64 KiB block of RAM.
+
+        #FC (write)	Mapper segment for page 0 (#0000-#3FFF)
+        #FD (write)	Mapper segment for page 1 (#4000-#7FFF)
+        #FE (write)	Mapper segment for page 2 (#8000-#BFFF)
+        #FF (write)	Mapper segment for page 3 (#C000-#FFFF)
+  */
+  
+
+
+  getchar();
+
   Screen(2);
   
   // It's mandatory to do this to use files!
