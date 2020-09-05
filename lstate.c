@@ -143,6 +143,7 @@ void main(void)
   //getchar();
 
   Screen(2);
+  SetBorderColor(1);
 
   // Open
   fH = Open("vram.bin", O_RDONLY);
@@ -185,7 +186,6 @@ void main(void)
   // Put page 3 of the game in our page 3, and so on.
   InPort(0x2E); // DEBUG
 
-  //OutPort(0xFF, 13); // PROBLEMAAAAAAAAAAAAAAAA. Nuestra (.COM) pila está en 0xD4CD
   __asm
   ld a, #13
   out (0xFF), a
@@ -195,51 +195,71 @@ void main(void)
 
   ld a, #11
   out (0xFD), a
-
  __endasm;
 
   // Patch the original code on its page 3
+  ptr = (unsigned char*)0xFFE0;
   
+  // See: https://clrhome.org/table/  
+  *ptr++ = 0; // NOP
   
-  // Set a JP close to the end
-  // Example:   JP 0x0416 --> C3, 16, 04
-  // PC = 0x8604
-  
-  // LD A, CF --> 
-  // OUT (0xD0), A --> D3, D0
-  
-  // ld a,0xF1 --> 3e f1
-  
-  ptr = (unsigned char*)0xCF00;
-  ptr[0] = 0x3E;
-  ptr[1] = 10; // LD A, 10
-  
-  ptr[2] = 0xD3;
-  ptr[3] = 0xFC; // OUT (0xFC), A
+  *ptr++ = 0x32;
+  *ptr++ = 0xE0;
+  *ptr++ = 0xFF; // LD (FFE0), A
 
+  *ptr++ = 0x3E;
+  *ptr++ = 10; // LD A, 10
+  
+  *ptr++ = 0xD3;
+  *ptr++ = 0xFC; // OUT (0xFC), A
 
-  ptr[4] = 0xC3;
-  ptr[5] = 0x04;
-  ptr[6] = 0x86; // JP 0x8604
+  *ptr++ = 0x3A;
+  *ptr++ = 0xE0;
+  *ptr++ = 0xFF; // LD A, (FFE0)
+
+  *ptr++ = 0xC3;
+  *ptr++ = 0xE3;
+  *ptr++ = 0x5C; // JP 0x5CE3
   
   __asm
-  ld sp, #0x0fe3
+  ld sp, #0x0ff7
   
-  ld bc, #0xCF00 // return address
+  ld bc, #0xFFE0 // return address
   push bc
 
-  ld bc, #0xffa4 // af
+  ld bc, #0x0044 // af
   push bc
-  ld bc, #0x0000 // bc
+  ld bc, #0x0107 // bc
   push bc
-  ld bc, #0x184e // de
+  ld bc, #0x94b3 // de
   push bc
-  ld bc, #0x0000 // hl
+  ld bc, #0x3058 // hl
   push bc
-  ld bc, #0x92e3 // ix
+  ld bc, #0x8e92 // ix
   push bc
   ld bc, #0x85c1 // iy
   push bc
+  
+  // Shadow registers
+  exx
+  ex af,af'
+  //
+  ld bc, #0xb1b4 // af'
+  push bc
+  ld bc, #0x0000 // bc'
+  push bc
+  ld bc, #0x0f00 // de'
+  push bc
+  ld bc, #0x0000 // hl'
+  push bc
+  //
+  pop hl
+  pop de
+  pop bc
+  pop af
+  //
+  ex af,af'
+  exx
   
   pop iy
   pop ix
@@ -247,35 +267,9 @@ void main(void)
   pop de
   pop bc
   pop af
+  
   ret
-
-  //jp 0xCF00
  __endasm;
-  
-  
-  
-  
-  
-  
-  
-  
-
-/*af      =       0xffa4
-bc      =       0x0000
-de      =       0x184e
-hl      =       0x0000
-ix      =       0x92e3
-iy      =       0x85c1
-pc      =       0x8604
-sp      =       0x0fe3
-af2     =       0x0a0a
-bc2     =       0x00ff
-de2     =       0x8fff
-hl2     =       0xe1b5*/
-
-  
-  
-  
 
   // Exit
   Screen(1);
