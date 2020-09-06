@@ -22,27 +22,6 @@ ret
 __endasm;
 }
 
-// Warning: execution fails when the buffers are put inside main (stack overflow?)
-char buffer[1024];
-
-typedef struct {
-    unsigned int af;
-    unsigned int bc;
-    unsigned int de;
-    unsigned int hl;
-    unsigned int ix;
-    unsigned int iy;
-    unsigned int pc;
-    unsigned int sp;
-    unsigned int af2;
-    unsigned int bc2;
-    unsigned int de2;
-    unsigned int hl2;
-} Regs;
-
-Regs regs;
-
-
 void init() {
     // It's mandatory to do this to use files!
     FCBs();
@@ -71,14 +50,43 @@ void delay() {
 // Panasonic_FS-A1ST BAD
 // Panasonic_FS-A1GT OK
 
+// Warning: execution fails when the buffers are put inside main (stack overflow?)
+char buffer[1024];
+
+typedef struct {
+    unsigned int af;
+    unsigned int bc;
+    unsigned int de;
+    unsigned int hl;
+    unsigned int ix;
+    unsigned int iy;
+    unsigned int pc;
+    unsigned int sp;
+    unsigned int af2;
+    unsigned int bc2;
+    unsigned int de2;
+    unsigned int hl2;
+} Regs;
+
+Regs regs;
+
+int segment;
+int fH;
+unsigned int i, j;
+
+unsigned char *ptr;
+unsigned char *ptr_origin;
+unsigned char *to;
+
 void main(void) 
 {
   //init();
   FCBs();
 
-  printf("Load MSX1 state\r\n\r\n");
+  printf("Load MSX1 state\r\n\GNU GPL By Miguel Colom, 2020\r\n\r\n");
   
   // Primary slot reg
+  /*
   unsigned char b = InPort(0xA8);
   printf("Primary slot reg (0xA8)\r\n");
   printf("Page 0, 0000-3FFF: %d\r\n",  b & 0b00000011      );
@@ -98,7 +106,7 @@ void main(void)
   printf("Page 1, 4000-7FFF: subslot %d\r\n", (val_inv & 0b00001100) >> 2);
   printf("Page 2, 8000-BFFF: subslot %d\r\n", (val_inv & 0b00110000) >> 4);
   printf("Page 3, C000-FFFF: subslot %d\r\n", (val_inv & 0b11000000) >> 6);
-  printf("\r\n");
+  printf("\r\n");*/
   
   // Memory mapper regs
   // https://www.msx.org/wiki/Memory_Mapper
@@ -116,19 +124,19 @@ void main(void)
         #FE (write)	Mapper segment for page 2 (#8000-#BFFF)
         #FF (write)	Mapper segment for page 3 (#C000-#FFFF)
   */
-  
-  //ptr = (unsigned char*)0x0000;
-  //*ptr = 0; // Choose subslot 0 everywhere
+
+  // In Panasonic_FS-A1GT (Turbo-R) and OCM the RAM is in 3-0.
+  // [ToDo] Use a RAM detection routine
+  ptr = (unsigned char*)0xFFFF;
+  *ptr = 0; // Choose subslot 0 everywhere
   
   // Read registers
-  int fH = open_file("regs.bin");
+  fH = open_file("regs.bin");
 
   //debug set_watchpoint read_io 0x2E
   //InPort(0x2E);
   
-  printf("PRE read regs\r\n");
   Read(fH, &regs, sizeof(Regs));
-  printf("POST read regs\r\n");
   Close(fH);
   
   printf("af=");   PrintHex(regs.af);
@@ -145,52 +153,30 @@ void main(void)
   printf(", bc2="); PrintHex(regs.bc2);
   printf(", de2="); PrintHex(regs.de2);
   printf(", hl2="); PrintHex(regs.hl2);
-  
-  //getchar();
+  printf("\r\n");
   
   fH = open_file("ram.bin");
-  for (unsigned char segment = 10; segment < 14; segment++) {
+  for (segment = 10; segment < 14; segment++) {
+      printf("Filling segment %d\r", segment);
       OutPort(0xFE, 1); // Restore segment 1 in page 2 (#8000-#BFFF)
       
-      unsigned char *to = (unsigned char *)0x8000;
-      for (unsigned int i = 0; i < 16; i++) {
-          /*printf("Read %u bytes in ", sizeof(buffer));
-          PrintHex((unsigned int)&buffer);
-          printf("\r\n");*/
-
+      to = (unsigned char *)0x8000;
+      for (i = 0; i < 16; i++) {
           Read(fH, buffer, sizeof(buffer));
 
-          
-          printf("Copy %u bytes from ", sizeof(buffer));
-          PrintHex((unsigned int)&buffer);
-          printf(" to ");
-          PrintHex((unsigned int)to);
-          printf("\r\n");
-
-
-          printf("Set select %d\r\n", segment);
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
 
-          for (unsigned int j = 0; j < sizeof(buffer); j++) {
+          for (j = 0; j < sizeof(buffer); j++) {
               to[j] = buffer[j];
           }
           to += sizeof(buffer); // sdcc seems to wrongly compile *to++ = buffer[i];
       }
-      printf("\r\n");
   }
+  printf("\n");
   Close(fH);  
 
   Screen(2);
   SetBorderColor(1);
-
-  // THIS CODE IS NOT NEEDED, BUT THE PROGRAM FAILS WHEN REMOVED (?!?)
-  // IT'S EITHER A PROBLEM OF THE LOCAL STACK OR THE SDCC COMPILER.
-  fH = open_file("vram.bin");
-  for (int start_vram = 0; start_vram < 0; start_vram += 1024) {
-      Read(fH, buffer, 1024);      
-      CopyRamToVram(buffer, start_vram, 1024);
-  }
-  Close(fH);
   
   //getchar();
   
@@ -198,7 +184,6 @@ void main(void)
   // Put page 2 of the game (segment 12) in our page 2
   // Put page 1 of the game (segment 11) in our page 1
   // Page 0 not yet, since it's where we're executing now!
-  InPort(0x2E); // DEBUG
 
   __asm
   ld a, #13
@@ -213,7 +198,8 @@ void main(void)
 
   // Patch the original code on its page 3.
   // Be careful not to go beyond 0XFFFE!
-  ptr = (unsigned char*)0xFFE0;
+  ptr_origin = (unsigned char*)0xFFE0;
+  ptr = ptr_origin;
   
   // See: https://clrhome.org/table/  
   *ptr++ = 0; // NOP
@@ -229,47 +215,49 @@ void main(void)
   *ptr++ = 0xFC; // OUT (0xFC), A
 
   *ptr++ = 0x3A;
-  *ptr++ = 0xE0;
-  *ptr++ = 0xFF; // LD A, (FFE0)
-  
+  *ptr++ = (char)(((unsigned int)ptr_origin & 0x00FF));
+  *ptr++ = (char)(((unsigned int)ptr_origin & 0xFF00) >> 8);
+  // LD A, ptr_origin
+
   *ptr++ = 0xFB; // EI
 
   *ptr++ = 0xC3;
-  *ptr++ = 0xE3;
-  *ptr++ = 0x5C; // JP 0x5CE3
-  
+  *ptr++ = (char)(((unsigned int)regs.pc & 0x00FF));
+  *ptr++ = (char)(((unsigned int)regs.pc & 0xFF00) >> 8);
+  // JP to the game's original PC
+
   __asm
   di
-  
-  ld sp, #0x0ff7
-  
-  ld bc, #0xFFE0 // return address
+
+  ld sp, (_regs + 7*2)  // SP
+
+  ld bc, (_ptr_origin) // our ret address to the second step in page 3
   push bc
 
-  ld bc, #0x0044 // af
+  ld bc, (_regs + 0*2) // AF
   push bc
-  ld bc, #0x0106 // bc
+  ld bc, (_regs + 1*2) // BC
   push bc
-  ld bc, #0x950B // de
+  ld bc, (_regs + 2*2) // DE
   push bc
-  ld bc, #0x3060 // hl
+  ld bc, (_regs + 3*2) // HL
   push bc
-  ld bc, #0x8E92 // ix
+  ld bc, (_regs + 4*2) // IX
   push bc
-  ld bc, #0x85C1 // iy
+  ld bc, (_regs + 5*2) // IY
   push bc
   
   // Shadow registers
   exx
   ex af,af'
   //
-  ld bc, #0xB1B4 // af'
+  ld bc, (_regs + 8*2) // AF'
   push bc
-  ld bc, #0x0000 // bc'
+  ld bc, (_regs + 9*2) // BC'
   push bc
-  ld bc, #0x0F00 // de'
+  ld bc, (_regs + 10*2) // DE'
   push bc
-  ld bc, #0x0000 // hl'
+  ld bc, (_regs + 11*2) // HL'
   push bc
   //
   pop hl
