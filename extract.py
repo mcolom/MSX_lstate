@@ -52,31 +52,30 @@ args = parser.parse_args()
 tree = ET.parse(args.filename)
 root = tree.getroot()
 
-#ram = root.findall("./machine/config/device[@type='Ram']")
+# Save RAM dump
 ram = root.findall("machine/config/device[@type='Ram']/ram/ram[@encoding='gz-base64']")
-ram = ram[0]
-ram_base64 = ram.text
+ram_base64 = ram[0].text
 
 decoded_data = zlib.decompress(base64.b64decode(ram_base64))
-
 with open("ram.bin", "wb") as f:
     f.write(decoded_data)
 
-##########
+# Save VDP registers
+vregs = root.findall("machine/config/device[@type='VDP']/registers/")
 
+with open("vregs.bin", "wb") as f:
+    vregs_bytes = bytes([int(vreg.text) for vreg in vregs[0:8]])
+    f.write(vregs_bytes)
+
+# Save VRAM dump
 vram = root.findall("machine/config/device[@type='VDP']/vram/data[@encoding='gz-base64']")
-vram = vram[0]
-vram_base64 = vram.text
+vram_base64 = vram[0].text
 
 decoded_data = zlib.decompress(base64.b64decode(vram_base64))
-
 with open("vram.bin", "wb") as f:
     f.write(decoded_data)
 
-##########
-
-
-# Read registers
+# Read and save CPU registers
 reg_names = ['af', 'bc', 'de', 'hl', \
              'ix', 'iy', \
              'pc', 'sp', \
@@ -93,8 +92,3 @@ with open("regs.bin", "wb") as f:
         value = regs[name]
         z80_word = int.to_bytes(value, length=2, byteorder='little')
         f.write(z80_word)
-
-        
-        
-
-

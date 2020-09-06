@@ -31,6 +31,7 @@ int open_file(const char *filename) {
     int fH = Open(filename, O_RDONLY);
     if (fH < 0) {
         printf("File not found: %s\r\n", filename);
+        Exit(1);
     }
     return fH;
 }
@@ -50,7 +51,7 @@ void delay() {
 // Panasonic_FS-A1ST BAD
 // Panasonic_FS-A1GT OK
 
-// Warning: execution fails when the buffers are put inside main (stack overflow?)
+// Warning: execution fails when the buffers are put inside main (sdcc bug?)
 char buffer[1024];
 
 typedef struct {
@@ -69,6 +70,7 @@ typedef struct {
 } Regs;
 
 Regs regs;
+unsigned char VDP_regs[8];
 
 int segment;
 int fH;
@@ -83,7 +85,7 @@ void main(void)
   //init();
   FCBs();
 
-  printf("Load MSX1 state\r\n\GNU GPL By Miguel Colom, 2020\r\n\r\n");
+  printf("Load MSX1 state\r\n\GNU GPL by mcolom, 2020\r\n\r\n");
   
   // Primary slot reg
   unsigned char b = InPort(0xA8);
@@ -168,19 +170,30 @@ void main(void)
           for (j = 0; j < sizeof(buffer); j++) {
               to[j] = buffer[j];
           }
-          to += sizeof(buffer); // sdcc seems to wrongly compile *to++ = buffer[i];
+          to += sizeof(buffer);
       }
   }
   printf("\n");
   Close(fH);  
-
-  Screen(2);
-  SetBorderColor(1);
   
   // Zero VRAM
   unsigned char VRAM_Kb = GetVramSize();
   FillVram(0, 0, VRAM_Kb*1024);
-  
+
+  // Set the 8 VDP regs.
+  fH = Open("vregs.bin", O_RDONLY);
+  if (fH > 0) {
+      Read(fH, VDP_regs, 8);
+      for (i = 0; i < 8; i++) {
+          VDPwrite(i, VDP_regs[i]);
+      }
+      Close(fH);
+  } else {
+      // The file is missing: assume screen 2 with black border
+      Screen(2);
+      SetBorderColor(1);
+  }
+
   // Dump 64 Kb of VRAM
   fH = open_file("vram.bin");
   for (int start_vram = 0; start_vram < 16*1024; start_vram += 1024) {
@@ -263,6 +276,7 @@ void main(void)
   ex af,af'
   //
   ld bc, (_regs + 8*2) // AF'
+
   push bc
   ld bc, (_regs + 9*2) // BC'
   push bc
