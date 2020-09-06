@@ -46,12 +46,10 @@ def print_regs(regs):
 
 
 parser = argparse.ArgumentParser()
-#parser.add_argument("-i", "--integration", help="Use the Integration environment", action="store_true")
-#parser.add_argument("-l", "--local", help="Use the Local ({}) environment".format(LOCAL_IP), action="store_true")
-#parser.add_argument("command", nargs='+')
+parser.add_argument("filename", type=str, help="Input XML filename")
 args = parser.parse_args()
 
-tree = ET.parse('madmix.xml')
+tree = ET.parse(args.filename)
 root = tree.getroot()
 
 #ram = root.findall("./machine/config/device[@type='Ram']")
