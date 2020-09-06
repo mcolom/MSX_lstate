@@ -18,6 +18,7 @@
 
 import argparse
 from xml.etree import ElementTree as ET
+import gzip
 import base64, zlib
 import os
 import sys
@@ -46,10 +47,12 @@ def print_regs(regs):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("filename", type=str, help="Input XML filename")
+parser.add_argument("filename", type=str, help=".oms openMSX savestate. For example, ~/.openMSX/savestates/madmix.oms")
 args = parser.parse_args()
 
-tree = ET.parse(args.filename)
+with gzip.open(args.filename) as f:
+    tree = ET.parse(f)
+
 root = tree.getroot()
 
 # Save RAM dump
