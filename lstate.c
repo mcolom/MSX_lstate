@@ -86,7 +86,6 @@ void main(void)
   printf("Load MSX1 state\r\n\GNU GPL By Miguel Colom, 2020\r\n\r\n");
   
   // Primary slot reg
-  /*
   unsigned char b = InPort(0xA8);
   printf("Primary slot reg (0xA8)\r\n");
   printf("Page 0, 0000-3FFF: %d\r\n",  b & 0b00000011      );
@@ -106,7 +105,7 @@ void main(void)
   printf("Page 1, 4000-7FFF: subslot %d\r\n", (val_inv & 0b00001100) >> 2);
   printf("Page 2, 8000-BFFF: subslot %d\r\n", (val_inv & 0b00110000) >> 4);
   printf("Page 3, C000-FFFF: subslot %d\r\n", (val_inv & 0b11000000) >> 6);
-  printf("\r\n");*/
+  printf("\r\n");
   
   // Memory mapper regs
   // https://www.msx.org/wiki/Memory_Mapper
@@ -127,8 +126,8 @@ void main(void)
 
   // In Panasonic_FS-A1GT (Turbo-R) and OCM the RAM is in 3-0.
   // [ToDo] Use a RAM detection routine
-  ptr = (unsigned char*)0xFFFF;
-  *ptr = 0; // Choose subslot 0 everywhere
+  //ptr = (unsigned char*)0xFFFF;
+  //*ptr = 0; // Choose subslot 0 everywhere
   
   // Read registers
   fH = open_file("regs.bin");
