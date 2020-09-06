@@ -177,6 +177,18 @@ void main(void)
   Screen(2);
   SetBorderColor(1);
   
+  // Zero VRAM
+  unsigned char VRAM_Kb = GetVramSize();
+  FillVram(0, 0, VRAM_Kb*1024);
+  
+  // Dump 64 Kb of VRAM
+  fH = open_file("vram.bin");
+  for (int start_vram = 0; start_vram < 16*1024; start_vram += 1024) {
+      Read(fH, buffer, 1024);      
+      CopyRamToVram(buffer, start_vram, 1024);
+  }
+  Close(fH);
+  
   //getchar();
   
   // Put page 3 of the game (segment 13) in our page 3
