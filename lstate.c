@@ -68,9 +68,13 @@ void delay() {
     printf("END delay...\r\n");
 }
 
+// Panasonic_FS-A1ST BAD
+// Panasonic_FS-A1GT OK
+
 void main(void) 
 {
-  init();
+  //init();
+  FCBs();
 
   printf("Load MSX1 state\r\n\r\n");
   
@@ -113,16 +117,18 @@ void main(void)
         #FF (write)	Mapper segment for page 3 (#C000-#FFFF)
   */
   
-  // Read registers    
+  //ptr = (unsigned char*)0x0000;
+  //*ptr = 0; // Choose subslot 0 everywhere
   
-
-  
-  int fH = Open("regs.bin", O_RDONLY);
+  // Read registers
+  int fH = open_file("regs.bin");
 
   //debug set_watchpoint read_io 0x2E
-  //InPort(0x2E); // PC = 0x13B2, 0x02CF
+  //InPort(0x2E);
   
+  printf("PRE read regs\r\n");
   Read(fH, &regs, sizeof(Regs));
+  printf("POST read regs\r\n");
   Close(fH);
   
   printf("af=");   PrintHex(regs.af);
@@ -139,51 +145,59 @@ void main(void)
   printf(", bc2="); PrintHex(regs.bc2);
   printf(", de2="); PrintHex(regs.de2);
   printf(", hl2="); PrintHex(regs.hl2);
-
+  
   //getchar();
+  
+  fH = open_file("ram.bin");
+  for (unsigned char segment = 10; segment < 14; segment++) {
+      OutPort(0xFE, 1); // Restore segment 1 in page 2 (#8000-#BFFF)
+      
+      unsigned char *to = (unsigned char *)0x8000;
+      for (unsigned int i = 0; i < 16; i++) {
+          /*printf("Read %u bytes in ", sizeof(buffer));
+          PrintHex((unsigned int)&buffer);
+          printf("\r\n");*/
+
+          Read(fH, buffer, sizeof(buffer));
+
+          
+          printf("Copy %u bytes from ", sizeof(buffer));
+          PrintHex((unsigned int)&buffer);
+          printf(" to ");
+          PrintHex((unsigned int)to);
+          printf("\r\n");
+
+
+          printf("Set select %d\r\n", segment);
+          OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
+
+          for (unsigned int j = 0; j < sizeof(buffer); j++) {
+              to[j] = buffer[j];
+          }
+          to += sizeof(buffer); // sdcc seems to wrongly compile *to++ = buffer[i];
+      }
+      printf("\r\n");
+  }
+  Close(fH);  
 
   Screen(2);
   SetBorderColor(1);
 
-  // Open
-  fH = Open("vram.bin", O_RDONLY);
-  
-  // Read to copy to VRAM
-  for (int start_vram = 0; start_vram < 16*1024; start_vram += 1024) {
+  // THIS CODE IS NOT NEEDED, BUT THE PROGRAM FAILS WHEN REMOVED (?!?)
+  // IT'S EITHER A PROBLEM OF THE LOCAL STACK OR THE SDCC COMPILER.
+  fH = open_file("vram.bin");
+  for (int start_vram = 0; start_vram < 0; start_vram += 1024) {
       Read(fH, buffer, 1024);      
       CopyRamToVram(buffer, start_vram, 1024);
   }
-  
-  // Close  
   Close(fH);
   
   //getchar();
   
-  // Load page 0 (0000-3FFFh) of game in 0x8000, segment 10
-  fH = Open("ram.bin", O_RDONLY);
-  
-  //InPort(0x2E); // DEBUG
-  OutPort(0xFE, 10); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
-  Read(fH, (void*)0x8000, 16*1024);
-
-  // Load page 1 (4000-7FFFh) of game in 0x8000, segment 11
-  //InPort(0x2E); // DEBUG
-  OutPort(0xFE, 11);
-  Read(fH, (void*)0x8000, 16*1024);
-
-  // Load page 2 (8000-BFFF) of game in 0x8000, segment 12
-  //InPort(0x2E); // DEBUG
-  OutPort(0xFE, 12);
-  Read(fH, (void*)0x8000, 16*1024);
-  
-  // Load page 3 (C000-FFFF) of game in 0x8000, segment 13
-  //InPort(0x2E); // DEBUG
-  OutPort(0xFE, 13);
-  Read(fH, (void*)0x8000, 16*1024);
-
-  Close(fH);
-  
-  // Put page 3 of the game in our page 3, and so on.
+  // Put page 3 of the game (segment 13) in our page 3
+  // Put page 2 of the game (segment 12) in our page 2
+  // Put page 1 of the game (segment 11) in our page 1
+  // Page 0 not yet, since it's where we're executing now!
   InPort(0x2E); // DEBUG
 
   __asm
@@ -197,7 +211,8 @@ void main(void)
   out (0xFD), a
  __endasm;
 
-  // Patch the original code on its page 3
+  // Patch the original code on its page 3.
+  // Be careful not to go beyond 0XFFFE!
   ptr = (unsigned char*)0xFFE0;
   
   // See: https://clrhome.org/table/  
@@ -216,12 +231,16 @@ void main(void)
   *ptr++ = 0x3A;
   *ptr++ = 0xE0;
   *ptr++ = 0xFF; // LD A, (FFE0)
+  
+  *ptr++ = 0xFB; // EI
 
   *ptr++ = 0xC3;
   *ptr++ = 0xE3;
   *ptr++ = 0x5C; // JP 0x5CE3
   
   __asm
+  di
+  
   ld sp, #0x0ff7
   
   ld bc, #0xFFE0 // return address
@@ -229,26 +248,26 @@ void main(void)
 
   ld bc, #0x0044 // af
   push bc
-  ld bc, #0x0107 // bc
+  ld bc, #0x0106 // bc
   push bc
-  ld bc, #0x94b3 // de
+  ld bc, #0x950B // de
   push bc
-  ld bc, #0x3058 // hl
+  ld bc, #0x3060 // hl
   push bc
-  ld bc, #0x8e92 // ix
+  ld bc, #0x8E92 // ix
   push bc
-  ld bc, #0x85c1 // iy
+  ld bc, #0x85C1 // iy
   push bc
   
   // Shadow registers
   exx
   ex af,af'
   //
-  ld bc, #0xb1b4 // af'
+  ld bc, #0xB1B4 // af'
   push bc
   ld bc, #0x0000 // bc'
   push bc
-  ld bc, #0x0f00 // de'
+  ld bc, #0x0F00 // de'
   push bc
   ld bc, #0x0000 // hl'
   push bc
