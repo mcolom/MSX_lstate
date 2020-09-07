@@ -25,32 +25,6 @@ this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-void init() {
-    // It's mandatory to do this to use files!
-    FCBs();
-}
-
-int open_file(const char *filename) {
-    int fH = Open(filename, O_RDONLY);
-    if (fH < 0) {
-        printf("File not found: %s\r\n", filename);
-        Exit(1);
-    }
-    return fH;
-}
-
-void delay() {
-    printf("START delay...\r\n");
-    for (unsigned int i = 0; i < 60000; i++) {
-        for (unsigned int j = 0; j < 1; j++) {
-          __asm
-          nop
-         __endasm;
-        }
-    }
-    printf("END delay...\r\n");
-}
-
 // Panasonic_FS-A1ST BAD
 // Panasonic_FS-A1GT OK
 
@@ -83,38 +57,15 @@ unsigned char *ptr;
 unsigned char *ptr_origin;
 unsigned char *to;
 
-void main(void) 
-{
-  //init();
-  FCBs();
+void init_files() {
+    // It's mandatory to do this to use files!
+    FCBs();
+}
 
-  printf("Load MSX1 state\r\n\GNU GPL by mcolom, 2020\r\n\r\n");
-  
-  // Primary slot reg
-  unsigned char b = InPort(0xA8);
-  printf("Primary slot reg (0xA8)\r\n");
-  printf("Page 0, 0000-3FFF: %d\r\n",  b & 0b00000011      );
-  printf("Page 1, 4000-7FFF: %d\r\n", (b & 0b00001100) >> 2);
-  printf("Page 2, 8000-BFFF: %d\r\n", (b & 0b00110000) >> 4);
-  printf("Page 3, C000-FFFF: %d\r\n", (b & 0b11000000) >> 6);
-  printf("\r\n");
-  
-  // Secondary slot reg
-  unsigned char *ptr = (unsigned char*)0xFFFF;
-  unsigned char val = *ptr;
-  unsigned char val_inv = val ^ 255;
-
-  // http://map.grauw.nl/resources/msx_io_ports.php#subslot
-  printf("Secondary slot reg (0xFFFF)\r\n");
-  printf("Page 0, 0000-3FFF: subslot %d\r\n",  val_inv & 0b00000011      );
-  printf("Page 1, 4000-7FFF: subslot %d\r\n", (val_inv & 0b00001100) >> 2);
-  printf("Page 2, 8000-BFFF: subslot %d\r\n", (val_inv & 0b00110000) >> 4);
-  printf("Page 3, C000-FFFF: subslot %d\r\n", (val_inv & 0b11000000) >> 6);
-  printf("\r\n");
-  
-  // Memory mapper regs
-  // https://www.msx.org/wiki/Memory_Mapper
-  /*
+void print_slot_config() {
+    // Memory mapper regs
+    // https://www.msx.org/wiki/Memory_Mapper
+    /*
     The MSX2 BIOS initializes memory mappers by setting up the following configuration:
 
     Segment 3 is set on page 0 (0000-3FFFh).
@@ -127,21 +78,65 @@ void main(void)
         #FD (write)	Mapper segment for page 1 (#4000-#7FFF)
         #FE (write)	Mapper segment for page 2 (#8000-#BFFF)
         #FF (write)	Mapper segment for page 3 (#C000-#FFFF)
-  */
+    */
 
+    // Primary slot reg
+    unsigned char b = InPort(0xA8);
+    printf("Primary slot reg (0xA8)\r\n");
+    printf("Page 0, 0000-3FFF: %d\r\n",  b & 0b00000011      );
+    printf("Page 1, 4000-7FFF: %d\r\n", (b & 0b00001100) >> 2);
+    printf("Page 2, 8000-BFFF: %d\r\n", (b & 0b00110000) >> 4);
+    printf("Page 3, C000-FFFF: %d\r\n", (b & 0b11000000) >> 6);
+    printf("\r\n");
+
+    // Secondary slot reg
+    unsigned char *ptr = (unsigned char*)0xFFFF;
+    unsigned char val = *ptr;
+    unsigned char val_inv = val ^ 255;
+
+    // http://map.grauw.nl/resources/msx_io_ports.php#subslot
+    printf("Secondary slot reg (0xFFFF)\r\n");
+    printf("Page 0, 0000-3FFF: subslot %d\r\n",  val_inv & 0b00000011      );
+    printf("Page 1, 4000-7FFF: subslot %d\r\n", (val_inv & 0b00001100) >> 2);
+    printf("Page 2, 8000-BFFF: subslot %d\r\n", (val_inv & 0b00110000) >> 4);
+    printf("Page 3, C000-FFFF: subslot %d\r\n", (val_inv & 0b11000000) >> 6);
+    printf("\r\n");
+}
+
+
+void main(char *argv[], int argc) {
+  printf("Load MSX1 state\r\nGNU GPL by mcolom, 2020\r\n\r\n");
+  
+  if (argc != 1) {
+      printf("Please specify the state file\r\n");
+      Exit(0);
+      return;
+  }
+  
   // In Panasonic_FS-A1GT (Turbo-R) and OCM the RAM is in 3-0.
   // [ToDo] Use a RAM detection routine
   //ptr = (unsigned char*)0xFFFF;
   //*ptr = 0; // Choose subslot 0 everywhere
   
+  // Copy argv to buffer. It can't be done after init()
+  NStrCopy(buffer, argv[0], sizeof(buffer)-1);
+  
+  init_files();
+  fH = Open(buffer, O_RDONLY);
+  
   // Read registers
-  fH = open_file("regs.bin");
+  if (fH < 0) {
+      printf("Can't open input file\r\n");
+      Exit(1);
+      return;
+  }
+  
+  print_slot_config();
 
   //debug set_watchpoint read_io 0x2E
   //InPort(0x2E);
   
   Read(fH, &regs, sizeof(Regs));
-  Close(fH);
   
   printf("af=");   PrintHex(regs.af);
   printf(", bc="); PrintHex(regs.bc);
@@ -158,8 +153,8 @@ void main(void)
   printf(", de2="); PrintHex(regs.de2);
   printf(", hl2="); PrintHex(regs.hl2);
   printf("\r\n");
-  
-  fH = open_file("ram.bin");
+
+  // Read RAM
   for (segment = 10; segment < 14; segment++) {
       printf("Filling segment %d\r", segment);
       OutPort(0xFE, 1); // Restore segment 1 in page 2 (#8000-#BFFF)
@@ -177,20 +172,17 @@ void main(void)
       }
   }
   printf("\n");
-  Close(fH);  
   
   // Zero VRAM
   unsigned char VRAM_Kb = GetVramSize();
   FillVram(0, 0, VRAM_Kb*1024);
 
   // Set the 8 VDP regs.
-  fH = Open("vregs.bin", O_RDONLY);
   if (fH > 0) {
       Read(fH, VDP_regs, 8);
       for (i = 0; i < 8; i++) {
           VDPwrite(i, VDP_regs[i]);
       }
-      Close(fH);
   } else {
       // The file is missing: assume screen 2 with black border
       Screen(2);
@@ -198,11 +190,11 @@ void main(void)
   }
 
   // Dump 64 Kb of VRAM
-  fH = open_file("vram.bin");
   for (int start_vram = 0; start_vram < 16*1024; start_vram += 1024) {
       Read(fH, buffer, 1024);      
       CopyRamToVram(buffer, start_vram, 1024);
   }
+
   Close(fH);
   
   //getchar();

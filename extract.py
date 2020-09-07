@@ -49,51 +49,50 @@ def print_regs(regs):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("filename", type=str, help=".oms openMSX savestate. For example, ~/.openMSX/savestates/madmix.oms")
+parser.add_argument("in_filename", type=str, help=".oms openMSX savestate. For example: ~/.openMSX/savestates/madmix.oms")
+parser.add_argument("out_filename", type=str, help="Output filename. For example: madmix.stt")
 args = parser.parse_args()
 
-with gzip.open(args.filename) as f:
+with gzip.open(args.in_filename) as f:
     tree = ET.parse(f)
 
 root = tree.getroot()
 
-# Save RAM dump
-ram = root.findall("machine/config/device[@type='Ram']/ram/ram[@encoding='gz-base64']")
-ram_base64 = ram[0].text
+with open(args.out_filename, "wb") as f:
+    # Read and save CPU registers
+    reg_names = ['af', 'bc', 'de', 'hl', \
+                 'ix', 'iy', \
+                 'pc', 'sp', \
+                 'af2', 'bc2', 'de2', 'hl2']
+    regs = {}
+    for name in reg_names:
+        regs[name] = get_reg(root, name)
 
-decoded_data = zlib.decompress(base64.b64decode(ram_base64))
-with open("ram.bin", "wb") as f:
-    f.write(decoded_data)
+    print_regs(regs)
 
-# Save VDP registers
-vregs = root.findall("machine/config/device[@type='VDP']/registers/")
-
-with open("vregs.bin", "wb") as f:
-    vregs_bytes = bytes([int(vreg.text) for vreg in vregs[0:8]])
-    f.write(vregs_bytes)
-
-# Save VRAM dump
-vram = root.findall("machine/config/device[@type='VDP']/vram/data[@encoding='gz-base64']")
-vram_base64 = vram[0].text
-
-decoded_data = zlib.decompress(base64.b64decode(vram_base64))
-with open("vram.bin", "wb") as f:
-    f.write(decoded_data)
-
-# Read and save CPU registers
-reg_names = ['af', 'bc', 'de', 'hl', \
-             'ix', 'iy', \
-             'pc', 'sp', \
-             'af2', 'bc2', 'de2', 'hl2']
-regs = {}
-for name in reg_names:
-    regs[name] = get_reg(root, name)
-
-print_regs(regs)
-
-# Save registers
-with open("regs.bin", "wb") as f:
     for name in reg_names:
         value = regs[name]
         z80_word = int.to_bytes(value, length=2, byteorder='little')
         f.write(z80_word)
+
+
+    # Save RAM
+    ram = root.findall("machine/config/device[@type='Ram']/ram/ram[@encoding='gz-base64']")
+    ram_base64 = ram[0].text
+
+    decoded_data = zlib.decompress(base64.b64decode(ram_base64))
+    f.write(decoded_data)
+
+    # Save VDP registers
+    vregs = root.findall("machine/config/device[@type='VDP']/registers/")
+    vregs_bytes = bytes([int(vreg.text) for vreg in vregs[0:8]])
+    f.write(vregs_bytes)
+    
+
+    # Save VRAM
+    vram = root.findall("machine/config/device[@type='VDP']/vram/data[@encoding='gz-base64']")
+    vram_base64 = vram[0].text
+
+    decoded_data = zlib.decompress(base64.b64decode(vram_base64))
+    f.write(decoded_data)
+
