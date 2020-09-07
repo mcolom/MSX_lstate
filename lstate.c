@@ -161,16 +161,7 @@ void main(char *argv[], int argc) {
   
   // Read primary slots config
   Read(fH, &slots, sizeof(slots));
-  printf("Read game slots: %d\r\n", slots);
-    
-  rom_selected = (slots & 0b00000011 != 3 || slots & 0b00001100 != 12);
-  if (rom_selected && regs.pc < 0x4000) {
-      printf("ROM needed but regs.pc=%d in ROM. Sorry, save state again and get PC > 0x4000\r\n", regs.pc);
-      Close(fH);
-      Exit(1);
-      return;
-  }
-  printf("rom_selected=%d\r\n", rom_selected);
+  rom_selected = ((slots & 0b00000011 < 2) || ((slots & 0b00001100 >> 2) < 2));
 
   // Read RAM
   for (segment = 10; segment < 14; segment++) {
