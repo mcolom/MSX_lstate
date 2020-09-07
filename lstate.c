@@ -28,7 +28,8 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 // Panasonic_FS-A1ST BAD
 // Panasonic_FS-A1GT OK
 
-// Warning: execution fails when the buffers are put inside main (sdcc bug?)
+// Warning: execution fails when the buffers are put inside main.
+// In main they're in the stack space, and here it's global.
 char buffer[1024];
 
 typedef struct {
@@ -48,6 +49,8 @@ typedef struct {
 
 Regs regs;
 unsigned char VDP_regs[8];
+unsigned char slots;
+unsigned char slot_p0, slot_p1;
 
 int segment;
 int fH;
@@ -56,6 +59,8 @@ unsigned int i, j;
 unsigned char *ptr;
 unsigned char *ptr_origin;
 unsigned char *to;
+
+unsigned char rom_selected;
 
 void init_files() {
     // It's mandatory to do this to use files!
@@ -82,7 +87,7 @@ void print_slot_config() {
 
     // Primary slot reg
     unsigned char b = InPort(0xA8);
-    printf("Primary slot reg (0xA8)\r\n");
+    printf("Primary slot reg (0xA8): %d\r\n", b);
     printf("Page 0, 0000-3FFF: %d\r\n",  b & 0b00000011      );
     printf("Page 1, 4000-7FFF: %d\r\n", (b & 0b00001100) >> 2);
     printf("Page 2, 8000-BFFF: %d\r\n", (b & 0b00110000) >> 4);
@@ -153,6 +158,19 @@ void main(char *argv[], int argc) {
   printf(", de2="); PrintHex(regs.de2);
   printf(", hl2="); PrintHex(regs.hl2);
   printf("\r\n");
+  
+  // Read primary slots config
+  Read(fH, &slots, sizeof(slots));
+  printf("Read game slots: %d\r\n", slots);
+    
+  rom_selected = (slots & 0b00000011 != 3 || slots & 0b00001100 != 12);
+  if (rom_selected && regs.pc < 0x4000) {
+      printf("ROM needed but regs.pc=%d in ROM. Sorry, save state again and get PC > 0x4000\r\n", regs.pc);
+      Close(fH);
+      Exit(1);
+      return;
+  }
+  printf("rom_selected=%d\r\n", rom_selected);
 
   // Read RAM
   for (segment = 10; segment < 14; segment++) {
@@ -171,11 +189,11 @@ void main(char *argv[], int argc) {
           to += sizeof(buffer);
       }
   }
-  printf("\n");
-  
+
   // Zero VRAM
   unsigned char VRAM_Kb = GetVramSize();
   FillVram(0, 0, VRAM_Kb*1024);
+  SetBorderColor(1);
 
   // Set the 8 VDP regs.
   if (fH > 0) {
@@ -186,7 +204,6 @@ void main(char *argv[], int argc) {
   } else {
       // The file is missing: assume screen 2 with black border
       Screen(2);
-      SetBorderColor(1);
   }
 
   // Dump 64 Kb of VRAM
@@ -198,13 +215,17 @@ void main(char *argv[], int argc) {
   Close(fH);
   
   //getchar();
-  
+
   // Put page 3 of the game (segment 13) in our page 3
   // Put page 2 of the game (segment 12) in our page 2
   // Put page 1 of the game (segment 11) in our page 1
   // Page 0 not yet, since it's where we're executing now!
+  
+  InPort(0x2E);
 
   __asm
+  di
+
   ld a, #13
   out (0xFF), a
 
@@ -214,29 +235,62 @@ void main(char *argv[], int argc) {
   ld a, #11
   out (0xFD), a
  __endasm;
-
+ 
   // Patch the original code on its page 3.
   // Be careful not to go beyond 0XFFFE!
-  ptr_origin = (unsigned char*)0xFFE0;
+  InPort(0x2E);
+  
+  // Choose a position in order that our stack is not overwritten by the game's stack!
+  if (regs.sp >= 0xC000)
+    ptr_origin = regs.sp; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
+  else
+    ptr_origin = 0xFFE0; // In a different page: we can't access it. Choose a high position and pray :D
+  ptr_origin -= 50;
+
   ptr = ptr_origin;
   
   // See: https://clrhome.org/table/  
-  *ptr++ = 0; // NOP
+  *ptr++ = 0; // NOP - to store A
   
   *ptr++ = 0x32;
-  *ptr++ = 0xE0;
-  *ptr++ = 0xFF; // LD (FFE0), A
-
-  *ptr++ = 0x3E;
-  *ptr++ = 10; // LD A, 10
+  *ptr++ = (char)(((unsigned int)ptr_origin & 0x00FF));
+  *ptr++ = (char)(((unsigned int)ptr_origin & 0xFF00) >> 8);
+  // LD (ptr_origin), A
   
-  *ptr++ = 0xD3;
-  *ptr++ = 0xFC; // OUT (0xFC), A
+  if (rom_selected) {
+  //if (0) {
+      *ptr++ = 0x3E;
+      *ptr++ = (InPort(0xA8) & 0b11110000) | (slots & 0b00001111);
+      // LD A, new_game_slots
+
+      // Set primary slot selector
+      *ptr++ = 0xD3;
+      *ptr++ = 0xA8;
+      // OUT (0xA8), A
+
+      // Set segment 0 for page 0 and 1
+      *ptr++ = 0x3E;
+      *ptr++ = 0; // LD A, 0
+      //
+      *ptr++ = 0xD3;
+      *ptr++ = 0xFC; // OUT (0xFC), A
+      //
+      *ptr++ = 0xD3;
+      *ptr++ = 0xFD; // OUT (0xFD), A
+
+  } else {
+      // Set segment 10 for page 0
+      *ptr++ = 0x3E;
+      *ptr++ = 10; // LD A, 10
+      //
+      *ptr++ = 0xD3;
+      *ptr++ = 0xFC; // OUT (0xFC), A
+  }
 
   *ptr++ = 0x3A;
   *ptr++ = (char)(((unsigned int)ptr_origin & 0x00FF));
   *ptr++ = (char)(((unsigned int)ptr_origin & 0xFF00) >> 8);
-  // LD A, ptr_origin
+  // LD A, (ptr_origin)
 
   *ptr++ = 0xFB; // EI
 
@@ -245,9 +299,8 @@ void main(char *argv[], int argc) {
   *ptr++ = (char)(((unsigned int)regs.pc & 0xFF00) >> 8);
   // JP to the game's original PC
 
-  __asm
-  di
-
+// Prepare registers and jump to our code in game's page.
+__asm
   ld sp, (_regs + 7*2)  // SP
 
   ld bc, (_ptr_origin) // our ret address to the second step in page 3
@@ -297,9 +350,5 @@ void main(char *argv[], int argc) {
   
   ret
  __endasm;
-
-  // Exit
-  Screen(1);
-  //Exit(0);
 }
  

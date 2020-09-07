@@ -75,6 +75,10 @@ with open(args.out_filename, "wb") as f:
         z80_word = int.to_bytes(value, length=2, byteorder='little')
         f.write(z80_word)
 
+    # Save primary slots configuration
+    primary_slots = int(root.findall("machine/cpuInterface/primarySlots")[0].text)
+    z80_byte = int.to_bytes(primary_slots, length=1, byteorder='little')
+    f.write(z80_byte)
 
     # Save RAM
     ram = root.findall("machine/config/device[@type='Ram']/ram/ram[@encoding='gz-base64']")
@@ -87,7 +91,6 @@ with open(args.out_filename, "wb") as f:
     vregs = root.findall("machine/config/device[@type='VDP']/registers/")
     vregs_bytes = bytes([int(vreg.text) for vreg in vregs[0:8]])
     f.write(vregs_bytes)
-    
 
     # Save VRAM
     vram = root.findall("machine/config/device[@type='VDP']/vram/data[@encoding='gz-base64']")
@@ -95,4 +98,3 @@ with open(args.out_filename, "wb") as f:
 
     decoded_data = zlib.decompress(base64.b64decode(vram_base64))
     f.write(decoded_data)
-
