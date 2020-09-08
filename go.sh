@@ -1,5 +1,5 @@
 #!/bin/bash
-cp *.stt Fusion-C-v1.2/Working\ Folder/dsk_miguel/
+#cp *.stt Fusion-C-v1.2/Working\ Folder/dsk_miguel/
 
 cd "Fusion-C-v1.2/Working Folder"
 

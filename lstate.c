@@ -161,7 +161,7 @@ void main(char *argv[], int argc) {
   
   // Read primary slots config
   Read(fH, &slots, sizeof(slots));
-  rom_selected = ((slots & 0b00000011 < 2) || ((slots & 0b00001100 >> 2) < 2));
+  rom_selected = (((slots & 0b00000011) < 2) || (((slots & 0b00001100) >> 2) < 2));
 
   // Read RAM
   for (segment = 10; segment < 14; segment++) {
@@ -187,22 +187,15 @@ void main(char *argv[], int argc) {
   SetBorderColor(1);
 
   // Set the 8 VDP regs.
-  if (fH > 0) {
-      Read(fH, VDP_regs, 8);
-      for (i = 0; i < 8; i++) {
-          VDPwrite(i, VDP_regs[i]);
-      }
-  } else {
-      // The file is missing: assume screen 2 with black border
-      Screen(2);
-  }
+  Read(fH, VDP_regs, 8);
+  for (i = 0; i < 8; i++)
+      VDPwrite(i, VDP_regs[i]);
 
   // Dump 64 Kb of VRAM
-  for (int start_vram = 0; start_vram < 16*1024; start_vram += 1024) {
-      Read(fH, buffer, 1024);      
-      CopyRamToVram(buffer, start_vram, 1024);
+  for (i = 0; i < 16*1024; i += 1024) {
+      Read(fH, buffer, 1024);
+      CopyRamToVram(buffer, i, 1024);
   }
-
   Close(fH);
   
   //getchar();
@@ -212,8 +205,6 @@ void main(char *argv[], int argc) {
   // Put page 1 of the game (segment 11) in our page 1
   // Page 0 not yet, since it's where we're executing now!
   
-  InPort(0x2E);
-
   __asm
   di
 
@@ -229,15 +220,10 @@ void main(char *argv[], int argc) {
  
   // Patch the original code on its page 3.
   // Be careful not to go beyond 0XFFFE!
-  InPort(0x2E);
-  
-  // Choose a position in order that our stack is not overwritten by the game's stack!
   if (regs.sp >= 0xC000)
-    ptr_origin = regs.sp; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
+    ptr_origin = (unsigned char *)regs.sp - 30; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
   else
-    ptr_origin = 0xFFE0; // In a different page: we can't access it. Choose a high position and pray :D
-  ptr_origin -= 50;
-
+    ptr_origin = 0xFFE0 - 50; // In a different page: we can't access it. Choose a high position and pray :D
   ptr = ptr_origin;
   
   // See: https://clrhome.org/table/  
@@ -249,7 +235,6 @@ void main(char *argv[], int argc) {
   // LD (ptr_origin), A
   
   if (rom_selected) {
-  //if (0) {
       *ptr++ = 0x3E;
       *ptr++ = (InPort(0xA8) & 0b11110000) | (slots & 0b00001111);
       // LD A, new_game_slots

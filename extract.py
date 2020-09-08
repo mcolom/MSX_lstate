@@ -85,6 +85,7 @@ with open(args.out_filename, "wb") as f:
     ram_base64 = ram[0].text
 
     decoded_data = zlib.decompress(base64.b64decode(ram_base64))
+    #decoded_data = decoded_data.replace(b'\x31\xff\xff', b'\x31\xd0\xff') # Patch LD SP, 0xFFFF with LD SP, 0xFFD0
     f.write(decoded_data)
 
     # Save VDP registers
