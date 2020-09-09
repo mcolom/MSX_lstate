@@ -60,7 +60,8 @@ unsigned char *ptr;
 unsigned char *ptr_origin;
 unsigned char *to;
 
-unsigned char rom_selected;
+unsigned char rom_selected_p0, rom_selected_p1;
+unsigned char new_game_slots;
 
 void init_files() {
     // It's mandatory to do this to use files!
@@ -161,7 +162,8 @@ void main(char *argv[], int argc) {
   
   // Read primary slots config
   Read(fH, &slots, sizeof(slots));
-  rom_selected = (((slots & 0b00000011) < 2) || (((slots & 0b00001100) >> 2) < 2));
+  rom_selected_p0 = (slots & 0b00000011) < 2;
+  rom_selected_p1 = ((slots & 0b00001100) >> 2) < 2;
 
   // Read RAM
   for (segment = 10; segment < 14; segment++) {
@@ -220,10 +222,13 @@ void main(char *argv[], int argc) {
  
   // Patch the original code on its page 3.
   // Be careful not to go beyond 0XFFFE!
+  //
+  // Tracer (SP=0xF095) works with - 40.
+  // Tracer (SP=0xFFFD) works000  with - 40.
   if (regs.sp >= 0xC000)
-    ptr_origin = (unsigned char *)regs.sp - 30; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
+    ptr_origin = (unsigned char *)regs.sp - 38; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
   else
-    ptr_origin = 0xFFE0 - 50; // In a different page: we can't access it. Choose a high position and pray :D
+    ptr_origin = 0xFFE0; // In a different page: we can't access it. Choose a high position and pray :D
   ptr = ptr_origin;
   
   // See: https://clrhome.org/table/  
@@ -234,9 +239,15 @@ void main(char *argv[], int argc) {
   *ptr++ = (char)(((unsigned int)ptr_origin & 0xFF00) >> 8);
   // LD (ptr_origin), A
   
-  if (rom_selected) {
+  
+  // If ROM selected, choose slot 0 in the corresponding pages
+  new_game_slots = InPort(0xA8);
+  if (rom_selected_p0) new_game_slots &= 0b11111100;
+  if (rom_selected_p1) new_game_slots &= 0b11110011;
+
+  if (rom_selected_p0 || rom_selected_p1) {
       *ptr++ = 0x3E;
-      *ptr++ = (InPort(0xA8) & 0b11110000) | (slots & 0b00001111);
+      *ptr++ = new_game_slots;
       // LD A, new_game_slots
 
       // Set primary slot selector
@@ -245,15 +256,19 @@ void main(char *argv[], int argc) {
       // OUT (0xA8), A
 
       // Set segment 0 for page 0 and 1
-      *ptr++ = 0x3E;
-      *ptr++ = 0; // LD A, 0
+      *ptr++ = 0xAF; // XOR A
       //
-      *ptr++ = 0xD3;
-      *ptr++ = 0xFC; // OUT (0xFC), A
-      //
-      *ptr++ = 0xD3;
-      *ptr++ = 0xFD; // OUT (0xFD), A
-
+      
+      // Set segment 0 for page 0
+      if (rom_selected_p0) {
+          *ptr++ = 0xD3;
+          *ptr++ = 0xFC; // OUT (0xFC), A
+      }
+      // Set segment 0 for page 0
+      if (rom_selected_p1) {
+          *ptr++ = 0xD3;
+          *ptr++ = 0xFD; // OUT (0xFD), A
+      }
   } else {
       // Set segment 10 for page 0
       *ptr++ = 0x3E;
@@ -276,6 +291,7 @@ void main(char *argv[], int argc) {
   // JP to the game's original PC
 
 // Prepare registers and jump to our code in game's page.
+InPort(0x2E);
 __asm
   ld sp, (_regs + 7*2)  // SP
 
