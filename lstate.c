@@ -222,9 +222,6 @@ void main(char *argv[], int argc) {
  
   // Patch the original code on its page 3.
   // Be careful not to go beyond 0XFFFE!
-  //
-  // Tracer (SP=0xF095) works with - 40.
-  // Tracer (SP=0xFFFD) works000  with - 40.
   if (regs.sp >= 0xC000)
     ptr_origin = (unsigned char *)regs.sp - 38; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
   else
@@ -264,7 +261,7 @@ void main(char *argv[], int argc) {
           *ptr++ = 0xD3;
           *ptr++ = 0xFC; // OUT (0xFC), A
       }
-      // Set segment 0 for page 0
+      // Set segment 0 for page 1
       if (rom_selected_p1) {
           *ptr++ = 0xD3;
           *ptr++ = 0xFD; // OUT (0xFD), A
