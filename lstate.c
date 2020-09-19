@@ -199,14 +199,11 @@ void main(char *argv[], int argc) {
       CopyRamToVram(buffer, i, 1024);
   }
   Close(fH);
-  
-  //getchar();
 
   // Put page 3 of the game (segment 13) in our page 3
   // Put page 2 of the game (segment 12) in our page 2
   // Put page 1 of the game (segment 11) in our page 1
   // Page 0 not yet, since it's where we're executing now!
-  
   __asm
   di
 
@@ -222,10 +219,19 @@ void main(char *argv[], int argc) {
  
   // Patch the original code on its page 3.
   // Be careful not to go beyond 0XFFFE!
-  if (regs.sp >= 0xC000)
-    ptr_origin = (unsigned char *)regs.sp - 38; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
-  else
-    ptr_origin = 0xFFE0; // In a different page: we can't access it. Choose a high position and pray :D
+  if (regs.sp >= 0xC000) {
+      ptr_origin = (unsigned char *)regs.sp - 38; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
+      
+      // If game's SP is too close to our MSX-DOS1 SP = 0xDFC8, pick a different location for our code
+      if (regs.sp - 0xDFC8 < 0x100) {
+          ptr_origin = 0xFFE0;
+      }
+  }
+  else {
+      ptr_origin = 0xFFE0; // In a different page: we can't access it. Choose a high position in our page 3 and pray :D
+  }
+  
+  
   ptr = ptr_origin;
   
   // See: https://clrhome.org/table/  
@@ -288,7 +294,7 @@ void main(char *argv[], int argc) {
   // JP to the game's original PC
 
 // Prepare registers and jump to our code in game's page.
-InPort(0x2E);
+//InPort(0x2E); // DEBUG
 __asm
   ld sp, (_regs + 7*2)  // SP
 

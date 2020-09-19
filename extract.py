@@ -87,7 +87,28 @@ with open(args.out_filename, "wb") as f:
     decoded_data = zlib.decompress(base64.b64decode(ram_base64))
     decoded_data = decoded_data.replace(b'\x31\x00\x00', b'\x31\xff\xff') # Patch LD SP, 0x0000 with LD SP, 0xFFFF
     f.write(decoded_data)
+    
+    subslot_p0 = (decoded_data[-1] & 0b00000011)
+    subslot_p1 = (decoded_data[-1] & 0b00001100) >> 2
+    #subslot_p2 = (decoded_data[-1] & 0b00110000) >> 4
+    #subslot_p3 = (decoded_data[-1] & 0b11000000) >> 6
+    
+    # Check if PC or SP point to ROM
+    PC = int(regs['pc'])
+    SP = int(regs['sp'])
+    if subslot_p0 == 0:
+        if PC < 0x4000:
+            print(f"Warning: ROM in page 0 and PC = 0x{PC:04x}")
+        if SP < 0x4000:
+            print(f"Warning: SP = 0x{SP:04x} in ROM page 0")
+    if subslot_p1 == 0:
+        if 0x4000 <= PC < 0x8000:
+            print(f"Warning: ROM in page 1 and PC = 0x{PC:04x}")
+        if 0x4000 <= SP < 0x8000:
+            print(f"Warning: SP = 0x{SP:04x} in ROM page 1")
 
+
+    
     # Save VDP registers
     vregs = root.findall("machine/config/device[@type='VDP']/registers/")
     vregs_bytes = bytes([int(vreg.text) for vreg in vregs[0:8]])
