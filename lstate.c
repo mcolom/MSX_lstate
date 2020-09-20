@@ -183,14 +183,12 @@ void main(char *argv[], int argc) {
       OutPort(0xFE, 1); // Restore segment 1 in page 2 (#8000-#BFFF)
       
       to = (unsigned char *)0x8000;
-      for (i = 0; i < 16; i++) {
+      for (i = 0; i < 16*1024 / sizeof(buffer); i++) {
           Read(fH, buffer, sizeof(buffer));
 
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
 
-          for (j = 0; j < sizeof(buffer); j++) {
-              to[j] = buffer[j];
-          }
+          MemCopy(to, buffer, sizeof(buffer));
           to += sizeof(buffer);
       }
   }
