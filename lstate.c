@@ -51,6 +51,8 @@ typedef struct {
     unsigned int hl2;
 } Regs;
 
+unsigned int initial_SP;
+
 Regs regs;
 unsigned char VDP_regs[8];
 unsigned char slots;
@@ -122,7 +124,7 @@ void main(char *argv[], int argc) {
       Exit(0);
       return;
   }
-  
+
   // In Panasonic_FS-A1GT (Turbo-R) and OCM the RAM is in 3-0.
   // [ToDo] Use a RAM detection routine
   //ptr = (unsigned char*)0xFFFF;
@@ -142,6 +144,13 @@ void main(char *argv[], int argc) {
   }
   
   print_slot_config();
+  
+  // get current SP
+  __asm
+      ld (_initial_SP), SP
+  __endasm;
+  printf("Current SP="); PrintHex(initial_SP); printf("\r\n");
+
 
   //debug set_watchpoint read_io 0x2E
   //InPort(0x2E);
@@ -247,8 +256,8 @@ void main(char *argv[], int argc) {
       printf("B) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
       #endif
       
-      // If game's SP is too close to our MSX-DOS1 SP = 0xDFC8, pick a different location for our code
-      if (regs.sp - 0xDFC8 < 0x100) {
+      // If game's SP is too close to our MSX-DOS1 SP = initial_SP (= 0xDFC8 in tests), pick a different location for our code
+      if (regs.sp - initial_SP < 0x100) {
           #ifdef DEBUG
           printf("C) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
           #endif
