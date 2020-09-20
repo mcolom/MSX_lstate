@@ -28,6 +28,10 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 // Panasonic_FS-A1ST BAD
 // Panasonic_FS-A1GT OK
 
+//#define DEBUG
+#define NUM_PUSHES 11
+#define LEN_CODE 20
+
 // Warning: execution fails when the buffers are put inside main.
 // In main they're in the stack space, and here it's global.
 char buffer[1024];
@@ -164,6 +168,14 @@ void main(char *argv[], int argc) {
   Read(fH, &slots, sizeof(slots));
   rom_selected_p0 = (slots & 0b00000011) < 2;
   rom_selected_p1 = ((slots & 0b00001100) >> 2) < 2;
+  
+  printf("slots = %d\r\n", slots);
+  printf("rom_selected_p0 = %d\r\n", rom_selected_p0);
+  printf("rom_selected_p1 = %d\r\n", rom_selected_p1);
+  
+  // Don't attempt to put the ROM - DEBUG
+  //rom_selected_p0 = 0;
+  //rom_selected_p1 = 0;
 
   // Read RAM
   for (segment = 10; segment < 14; segment++) {
@@ -184,6 +196,7 @@ void main(char *argv[], int argc) {
   }
 
   // Zero VRAM
+  #ifndef DEBUG
   unsigned char VRAM_Kb = GetVramSize();
   FillVram(0, 0, VRAM_Kb*1024);
   SetBorderColor(1);
@@ -198,12 +211,16 @@ void main(char *argv[], int argc) {
       Read(fH, buffer, 1024);
       CopyRamToVram(buffer, i, 1024);
   }
+  #endif
+  
+  
   Close(fH);
 
   // Put page 3 of the game (segment 13) in our page 3
   // Put page 2 of the game (segment 12) in our page 2
   // Put page 1 of the game (segment 11) in our page 1
   // Page 0 not yet, since it's where we're executing now!
+  #ifndef DEBUG
   __asm
   di
 
@@ -216,20 +233,40 @@ void main(char *argv[], int argc) {
   ld a, #11
   out (0xFD), a
  __endasm;
+ #endif
  
   // Patch the original code on its page 3.
-  // Be careful not to go beyond 0XFFFE!
+  // Be careful not to overwrite the stack!
   if (regs.sp >= 0xC000) {
-      ptr_origin = (unsigned char *)regs.sp - 38; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
+      #ifdef DEBUG
+      printf("A) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
+      #endif
+      
+      //ptr_origin = (unsigned char *)regs.sp - 38; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
+      ptr_origin = (unsigned char *)regs.sp - (NUM_PUSHES)*2 - LEN_CODE; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
+      
+      #ifdef DEBUG
+      printf("B) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
+      #endif
       
       // If game's SP is too close to our MSX-DOS1 SP = 0xDFC8, pick a different location for our code
       if (regs.sp - 0xDFC8 < 0x100) {
-          ptr_origin = 0xFFE0;
+          #ifdef DEBUG
+          printf("C) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
+          #endif
+          
+          ptr_origin = (unsigned char *)0xFFE0;
       }
   }
   else {
-      ptr_origin = 0xFFE0; // In a different page: we can't access it. Choose a high position in our page 3 and pray :D
+      ptr_origin = (unsigned char *)0xFFE0; // In a different page: we can't access it. Choose a high position in our page 3 and pray :D
   }
+  
+  //ptr_origin = (unsigned char *)0x3000; // DEBUG
+  
+  #ifdef DEBUG
+  printf("D) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
+  #endif
   
   
   ptr = ptr_origin;
@@ -247,6 +284,16 @@ void main(char *argv[], int argc) {
   new_game_slots = InPort(0xA8);
   if (rom_selected_p0) new_game_slots &= 0b11111100;
   if (rom_selected_p1) new_game_slots &= 0b11110011;
+  
+  
+  #ifdef DEBUG
+  printf("new_game_slots = %d\r\n", new_game_slots);
+  #endif
+  
+  #ifdef DEBUG
+  return;
+  #endif
+
 
   if (rom_selected_p0 || rom_selected_p1) {
       *ptr++ = 0x3E;
@@ -294,25 +341,26 @@ void main(char *argv[], int argc) {
   // JP to the game's original PC
 
 // Prepare registers and jump to our code in game's page.
-//InPort(0x2E); // DEBUG
+// There are NUM_PUSHES pushes
+InPort(0x2E); // DEBUG
 __asm
   ld sp, (_regs + 7*2)  // SP
 
   ld bc, (_ptr_origin) // our ret address to the second step in page 3
-  push bc
+  push bc // fffb --> fff9
 
   ld bc, (_regs + 0*2) // AF
-  push bc
+  push bc // --> fff7
   ld bc, (_regs + 1*2) // BC
-  push bc
+  push bc  // --> fff5
   ld bc, (_regs + 2*2) // DE
-  push bc
+  push bc // --> fff3
   ld bc, (_regs + 3*2) // HL
-  push bc
+  push bc  // --> fff1
   ld bc, (_regs + 4*2) // IX
-  push bc
+  push bc  // --> ffef
   ld bc, (_regs + 5*2) // IY
-  push bc
+  push bc  // --> ffed
   
   // Shadow registers
   exx
@@ -320,13 +368,13 @@ __asm
   //
   ld bc, (_regs + 8*2) // AF'
 
-  push bc
+  push bc  // --> ffeb
   ld bc, (_regs + 9*2) // BC'
-  push bc
+  push bc  // --> ffe9
   ld bc, (_regs + 10*2) // DE'
-  push bc
+  push bc  // --> ffe7
   ld bc, (_regs + 11*2) // HL'
-  push bc
+  push bc  // --> ffe5
   //
   pop hl
   pop de
@@ -346,4 +394,3 @@ __asm
   ret
  __endasm;
 }
- 
