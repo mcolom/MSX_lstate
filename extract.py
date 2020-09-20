@@ -82,6 +82,11 @@ with open(args.out_filename, "wb") as f:
 
     # Save RAM
     ram = root.findall("machine/config/device[@type='Ram']/ram/ram[@encoding='gz-base64']")
+    if not ram:
+        ram = root.findall("machine/config/device[@type='MemoryMapper']/ram/ram[@encoding='gz-base64']")
+    if not ram:
+        raise NameError("Can't find RAM entry in savestate")
+
     ram_base64 = ram[0].text
 
     decoded_data = zlib.decompress(base64.b64decode(ram_base64))
@@ -90,8 +95,6 @@ with open(args.out_filename, "wb") as f:
     
     subslot_p0 = (decoded_data[-1] & 0b00000011)
     subslot_p1 = (decoded_data[-1] & 0b00001100) >> 2
-    #subslot_p2 = (decoded_data[-1] & 0b00110000) >> 4
-    #subslot_p3 = (decoded_data[-1] & 0b11000000) >> 6
     
     # Check if PC or SP point to ROM
     PC = int(regs['pc'])
