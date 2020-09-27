@@ -63,7 +63,8 @@ with open(args.out_filename, "wb") as f:
     reg_names = ['af', 'bc', 'de', 'hl', \
                  'ix', 'iy', \
                  'pc', 'sp', \
-                 'af2', 'bc2', 'de2', 'hl2']
+                 'af2', 'bc2', 'de2', 'hl2',
+                 'iff1']
     regs = {}
     for name in reg_names:
         regs[name] = get_reg(root, name)
@@ -110,8 +111,6 @@ with open(args.out_filename, "wb") as f:
         if 0x4000 <= SP < 0x8000:
             print(f"Warning: SP = 0x{SP:04x} in ROM page 1")
 
-
-    
     # Save VDP registers
     vregs = root.findall("machine/config/device[@type='VDP']/registers/")
     vregs_bytes = bytes([int(vreg.text) for vreg in vregs[0:8]])

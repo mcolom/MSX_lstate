@@ -49,6 +49,7 @@ typedef struct {
     unsigned int bc2;
     unsigned int de2;
     unsigned int hl2;
+    unsigned int iff1;
 } Regs;
 
 unsigned int initial_SP;
@@ -64,6 +65,7 @@ unsigned int i, j;
 
 unsigned char *ptr;
 unsigned char *ptr_origin;
+unsigned char *from;
 unsigned char *to;
 
 unsigned char rom_selected_p0, rom_selected_p1;
@@ -124,11 +126,6 @@ void main(char *argv[], int argc) {
       Exit(0);
       return;
   }
-
-  // In Panasonic_FS-A1GT (Turbo-R) and OCM the RAM is in 3-0.
-  // [ToDo] Use a RAM detection routine
-  //ptr = (unsigned char*)0xFFFF;
-  //*ptr = 0; // Choose subslot 0 everywhere
   
   // Copy argv to buffer. It can't be done after init()
   NStrCopy(buffer, argv[0], sizeof(buffer)-1);
@@ -171,6 +168,8 @@ void main(char *argv[], int argc) {
   printf(", bc2="); PrintHex(regs.bc2);
   printf(", de2="); PrintHex(regs.de2);
   printf(", hl2="); PrintHex(regs.hl2);
+  //
+  printf(", iff1="); PrintHex(regs.iff1);
   printf("\r\n");
   
   // Read primary slots config
@@ -189,19 +188,27 @@ void main(char *argv[], int argc) {
   // Read RAM
   for (segment = 10; segment < 14; segment++) {
       printf("Filling segment %d\r", segment);
-      OutPort(0xFE, 1); // Restore segment 1 in page 2 (#8000-#BFFF)
-      
+
       to = (unsigned char *)0x8000;
+
       for (i = 0; i < 16*1024 / sizeof(buffer); i++) {
           Read(fH, buffer, sizeof(buffer));
 
+          if (segment == 13 && i >= 12 && rom_selected_p0) {
+              from = (unsigned char *)(0xC000 + i*sizeof(buffer));
+          }
+          else {
+              from = buffer;
+              
+          }
+          
+          //printf("Copy from "); PrintHex((unsigned int)from); printf(" to "); PrintHex((unsigned int)to); printf("\r\n");
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
-
-          MemCopy(to, buffer, sizeof(buffer));
+          MemCopy(to, from, sizeof(buffer));
           to += sizeof(buffer);
       }
   }
-
+  
   // Zero VRAM
   #ifndef DEBUG
   unsigned char VRAM_Kb = GetVramSize();
@@ -245,48 +252,38 @@ void main(char *argv[], int argc) {
   // Patch the original code on its page 3.
   // Be careful not to overwrite the stack!
   if (regs.sp >= 0xC000) {
-      #ifdef DEBUG
-      printf("A) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
-      #endif
-      
-      //ptr_origin = (unsigned char *)regs.sp - 38; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
       ptr_origin = (unsigned char *)regs.sp - (NUM_PUSHES)*2 - LEN_CODE; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
       
       #ifdef DEBUG
-      printf("B) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
+      printf("A) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
       #endif
       
       // If game's SP is too close to our MSX-DOS1 SP = initial_SP (= 0xDFC8 in tests), pick a different location for our code
       if (regs.sp - initial_SP < 0x100) {
           #ifdef DEBUG
-          printf("C) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
+          printf("B) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
           #endif
           
-          ptr_origin = (unsigned char *)0xFFE0;
+          ptr_origin = (unsigned char *)0xF000;
       }
   }
   else {
-      ptr_origin = (unsigned char *)0xFFE0; // In a different page: we can't access it. Choose a high position in our page 3 and pray :D
+      ptr_origin = (unsigned char *)0xF000; // In a different page: we can't access it. Choose a high position in our page 3 and pray :D
   }
   
   //ptr_origin = (unsigned char *)0x3000; // DEBUG
   
   #ifdef DEBUG
-  printf("D) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
+  printf("C) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
   #endif
   
   
   ptr = ptr_origin;
   
   // See: https://clrhome.org/table/  
-  *ptr++ = 0; // NOP - to store A
-  
-  *ptr++ = 0x32;
-  *ptr++ = (char)(((unsigned int)ptr_origin & 0x00FF));
-  *ptr++ = (char)(((unsigned int)ptr_origin & 0xFF00) >> 8);
-  // LD (ptr_origin), A
-  
-  
+
+  *ptr++ = 0xF5; // PUSH AF
+
   // If ROM selected, choose slot 0 in the corresponding pages
   new_game_slots = InPort(0xA8);
   if (rom_selected_p0) new_game_slots &= 0b11111100;
@@ -334,13 +331,11 @@ void main(char *argv[], int argc) {
       *ptr++ = 0xD3;
       *ptr++ = 0xFC; // OUT (0xFC), A
   }
-
-  *ptr++ = 0x3A;
-  *ptr++ = (char)(((unsigned int)ptr_origin & 0x00FF));
-  *ptr++ = (char)(((unsigned int)ptr_origin & 0xFF00) >> 8);
-  // LD A, (ptr_origin)
-
-  *ptr++ = 0xFB; // EI
+  
+  *ptr++ = 0xF1; // POP AF
+  
+  if (regs.iff1 == 1)
+      *ptr++ = 0xFB; // EI
 
   *ptr++ = 0xC3;
   *ptr++ = (char)(((unsigned int)regs.pc & 0x00FF));
