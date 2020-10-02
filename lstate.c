@@ -32,6 +32,9 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 #define NUM_PUSHES 11
 #define LEN_CODE 20
 
+#define H_KEYI 0xFD9A
+#define H_TIMI 0xFD9F
+
 // Warning: execution fails when the buffers are put inside main.
 // In main they're in the stack space, and here it's global.
 char buffer[1024];
@@ -181,6 +184,8 @@ void main(char *argv[], int argc) {
   printf("rom_selected_p0 = %d\r\n", rom_selected_p0);
   printf("rom_selected_p1 = %d\r\n", rom_selected_p1);
   
+  
+  
   // Don't attempt to put the ROM - DEBUG
   //rom_selected_p0 = 0;
   //rom_selected_p1 = 0;
@@ -194,20 +199,29 @@ void main(char *argv[], int argc) {
       for (i = 0; i < 16*1024 / sizeof(buffer); i++) {
           Read(fH, buffer, sizeof(buffer));
 
-          if (segment == 13 && i >= 12 && rom_selected_p0) {
+          if (rom_selected_p0 && segment == 13 && i >= 12) {
               from = (unsigned char *)(0xC000 + i*sizeof(buffer));
           }
           else {
               from = buffer;
-              
           }
           
           //printf("Copy from "); PrintHex((unsigned int)from); printf(" to "); PrintHex((unsigned int)to); printf("\r\n");
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
           MemCopy(to, from, sizeof(buffer));
+          
+          // If rom_selected_p0, we need to copy the
+          // H.KEYI and H.TIMI hooks the game configured
+          if (rom_selected_p0 && segment == 13 && i == 15) {
+              MemCopy((unsigned char*)(to + H_TIMI % sizeof(buffer)), (unsigned char*)(buffer + H_TIMI % sizeof(buffer)), 3);
+              MemCopy((unsigned char*)(to + H_KEYI % sizeof(buffer)), (unsigned char*)(buffer + H_KEYI % sizeof(buffer)), 3);
+          }
+          
           to += sizeof(buffer);
       }
   }
+  
+  
   
   // Zero VRAM
   #ifndef DEBUG
