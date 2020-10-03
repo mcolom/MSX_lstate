@@ -64,7 +64,7 @@ with open(args.out_filename, "wb") as f:
                  'ix', 'iy', \
                  'pc', 'sp', \
                  'af2', 'bc2', 'de2', 'hl2',
-                 'iff1']
+                 'iff1', 'im', 'i']
     regs = {}
     for name in reg_names:
         regs[name] = get_reg(root, name)

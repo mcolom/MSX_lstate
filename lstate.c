@@ -53,6 +53,8 @@ typedef struct {
     unsigned int de2;
     unsigned int hl2;
     unsigned int iff1;
+    unsigned int im;
+    unsigned int i;
 } Regs;
 
 unsigned int initial_SP;
@@ -68,7 +70,6 @@ unsigned int i, j;
 
 unsigned char *ptr;
 unsigned char *ptr_origin;
-unsigned char *from;
 unsigned char *to;
 
 unsigned char rom_selected_p0, rom_selected_p1;
@@ -173,6 +174,8 @@ void main(char *argv[], int argc) {
   printf(", hl2="); PrintHex(regs.hl2);
   //
   printf(", iff1="); PrintHex(regs.iff1);
+  printf(", im="); PrintHex(regs.im);
+  printf(", i="); PrintHex(regs.i);
   printf("\r\n");
   
   // Read primary slots config
@@ -183,8 +186,6 @@ void main(char *argv[], int argc) {
   printf("slots = %d\r\n", slots);
   printf("rom_selected_p0 = %d\r\n", rom_selected_p0);
   printf("rom_selected_p1 = %d\r\n", rom_selected_p1);
-  
-  
   
   // Don't attempt to put the ROM - DEBUG
   //rom_selected_p0 = 0;
@@ -199,16 +200,9 @@ void main(char *argv[], int argc) {
       for (i = 0; i < 16*1024 / sizeof(buffer); i++) {
           Read(fH, buffer, sizeof(buffer));
 
-          if (rom_selected_p0 && segment == 13 && i >= 12) {
-              from = (unsigned char *)(0xC000 + i*sizeof(buffer));
-          }
-          else {
-              from = buffer;
-          }
-          
           //printf("Copy from "); PrintHex((unsigned int)from); printf(" to "); PrintHex((unsigned int)to); printf("\r\n");
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
-          MemCopy(to, from, sizeof(buffer));
+          MemCopy(to, buffer, sizeof(buffer));
           
           // If rom_selected_p0, we need to copy the
           // H.KEYI and H.TIMI hooks the game configured
@@ -348,6 +342,11 @@ void main(char *argv[], int argc) {
   
   *ptr++ = 0xF1; // POP AF
   
+  if (regs.im == 2) {
+      *ptr++ = 0xED;
+      *ptr++ = 0x5E; ; // IM 2
+  }
+  
   if (regs.iff1 == 1)
       *ptr++ = 0xFB; // EI
 
@@ -361,6 +360,9 @@ void main(char *argv[], int argc) {
 InPort(0x2E); // DEBUG
 __asm
   ld sp, (_regs + 7*2)  // SP
+  
+  ld a, (_regs + 14*2) // I
+  ld i, a
 
   ld bc, (_ptr_origin) // our ret address to the second step in page 3
   push bc // fffb --> fff9
