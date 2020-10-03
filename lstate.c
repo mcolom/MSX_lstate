@@ -70,6 +70,7 @@ unsigned int i, j;
 
 unsigned char *ptr;
 unsigned char *ptr_origin;
+unsigned char *from;
 unsigned char *to;
 
 unsigned char rom_selected_p0, rom_selected_p1;
@@ -200,9 +201,15 @@ void main(char *argv[], int argc) {
       for (i = 0; i < 16*1024 / sizeof(buffer); i++) {
           Read(fH, buffer, sizeof(buffer));
 
+          // Don't overwritte MSX-DOS variables area
+          if (segment == 13 && i >= 12 && rom_selected_p0)
+              from = (unsigned char *)(0xC000 + i*sizeof(buffer));
+          else
+              from = buffer;
+
           //printf("Copy from "); PrintHex((unsigned int)from); printf(" to "); PrintHex((unsigned int)to); printf("\r\n");
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
-          MemCopy(to, buffer, sizeof(buffer));
+          MemCopy(to, from, sizeof(buffer));
           
           // If rom_selected_p0, we need to copy the
           // H.KEYI and H.TIMI hooks the game configured
