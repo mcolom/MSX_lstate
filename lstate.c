@@ -70,7 +70,7 @@ unsigned int i, j;
 
 unsigned char *ptr;
 unsigned char *ptr_origin;
-unsigned char *from;
+//unsigned char *from;
 unsigned char *to;
 
 unsigned char rom_selected_p0, rom_selected_p1;
@@ -81,6 +81,7 @@ void init_files() {
     FCBs();
 }
 
+#ifdef DEBUG
 void print_slot_config() {
     // Memory mapper regs
     // https://www.msx.org/wiki/Memory_Mapper
@@ -121,6 +122,7 @@ void print_slot_config() {
     printf("Page 3, C000-FFFF: subslot %d\r\n", (val_inv & 0b11000000) >> 6);
     printf("\r\n");
 }
+#endif
 
 
 void main(char *argv[], int argc) {
@@ -145,7 +147,9 @@ void main(char *argv[], int argc) {
       return;
   }
   
+  #ifdef DEBUG
   print_slot_config();
+  #endif
   
   // get current SP
   __asm
@@ -202,14 +206,14 @@ void main(char *argv[], int argc) {
           Read(fH, buffer, sizeof(buffer));
 
           // Don't overwritte MSX-DOS variables area
-          if (segment == 13 && i >= 12 && rom_selected_p0)
+          /*if (segment == 13 && i >= 14 && rom_selected_p0) // OK PROFANATION, BAD NAVY
               from = (unsigned char *)(0xC000 + i*sizeof(buffer));
           else
-              from = buffer;
+              from = buffer;*/
 
-          //printf("Copy from "); PrintHex((unsigned int)from); printf(" to "); PrintHex((unsigned int)to); printf("\r\n");
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
-          MemCopy(to, from, sizeof(buffer));
+          MemCopy(to, buffer, sizeof(buffer)); // OK NAVY,  BAD PROFANATION
+          //MemCopy(to, from, sizeof(buffer)); // BAD NAVY, OK  PROFANATION
           
           // If rom_selected_p0, we need to copy the
           // H.KEYI and H.TIMI hooks the game configured
@@ -224,21 +228,21 @@ void main(char *argv[], int argc) {
   
   
   
-  // Zero VRAM
-  #ifndef DEBUG
-  unsigned char VRAM_Kb = GetVramSize();
-  FillVram(0, 0, VRAM_Kb*1024);
-  SetBorderColor(1);
-
   // Set the 8 VDP regs.
   Read(fH, VDP_regs, 8);
   for (i = 0; i < 8; i++)
       VDPwrite(i, VDP_regs[i]);
 
+  // Zero VRAM
+  #ifndef DEBUG
+  unsigned char VRAM_Kb = GetVramSize();
+  FillVram(0, 0, VRAM_Kb*1024);
+  //SetBorderColor(1);
+
   // Dump 64 Kb of VRAM
-  for (i = 0; i < 16*1024; i += 1024) {
-      Read(fH, buffer, 1024);
-      CopyRamToVram(buffer, i, 1024);
+  for (i = 0; i < 16*1024; i += sizeof(buffer)) {
+      Read(fH, buffer, sizeof(buffer));
+      CopyRamToVram(buffer, i, sizeof(buffer));
   }
   #endif
   
@@ -285,8 +289,6 @@ void main(char *argv[], int argc) {
   else {
       ptr_origin = (unsigned char *)0xF000; // In a different page: we can't access it. Choose a high position in our page 3 and pray :D
   }
-  
-  //ptr_origin = (unsigned char *)0x3000; // DEBUG
   
   #ifdef DEBUG
   printf("C) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
