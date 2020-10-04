@@ -81,7 +81,6 @@ void init_files() {
     FCBs();
 }
 
-#ifdef DEBUG
 void print_slot_config() {
     // Memory mapper regs
     // https://www.msx.org/wiki/Memory_Mapper
@@ -122,8 +121,6 @@ void print_slot_config() {
     printf("Page 3, C000-FFFF: subslot %d\r\n", (val_inv & 0b11000000) >> 6);
     printf("\r\n");
 }
-#endif
-
 
 void main(char *argv[], int argc) {
   printf("Load MSX1 state\r\nGNU GPL by mcolom, 2020\r\n\r\n");
@@ -147,9 +144,7 @@ void main(char *argv[], int argc) {
       return;
   }
   
-  #ifdef DEBUG
   print_slot_config();
-  #endif
   
   // get current SP
   __asm
