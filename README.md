@@ -11,7 +11,7 @@ Instructions:
 1) Save a state in your emulated MSX1 machine with openMSX
 In its terminal type "savestate madmix" (for example) to save the state.
 2) Run the Python script. For example: ./extract.py ~/.openMSX/savestates/madmix.oms
-This script will create four binary files that the .com MSX-DOS program will read to recover the state
+This script will create one binary file that the .com MSX-DOS program will read to recover the state
 3) Run the MSX-DOS program.
 
 Have fun!
