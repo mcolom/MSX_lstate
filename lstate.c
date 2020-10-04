@@ -70,7 +70,7 @@ unsigned int i, j;
 
 unsigned char *ptr;
 unsigned char *ptr_origin;
-//unsigned char *from;
+unsigned char *from;
 unsigned char *to;
 
 unsigned char rom_selected_p0, rom_selected_p1;
@@ -201,14 +201,13 @@ void main(char *argv[], int argc) {
           Read(fH, buffer, sizeof(buffer));
 
           // Don't overwritte MSX-DOS variables area
-          /*if (segment == 13 && i >= 14 && rom_selected_p0) // OK PROFANATION, BAD NAVY
+          if (rom_selected_p0 && regs.im != 2 && segment == 13 && i >= 14)
               from = (unsigned char *)(0xC000 + i*sizeof(buffer));
           else
-              from = buffer;*/
+              from = buffer; // If IM = 2 actually we don't care about overwritting
 
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
-          MemCopy(to, buffer, sizeof(buffer)); // OK NAVY,  BAD PROFANATION
-          //MemCopy(to, from, sizeof(buffer)); // BAD NAVY, OK  PROFANATION
+          MemCopy(to, from, sizeof(buffer));
           
           // If rom_selected_p0, we need to copy the
           // H.KEYI and H.TIMI hooks the game configured
