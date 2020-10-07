@@ -35,6 +35,9 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 #define H_KEYI 0xFD9A
 #define H_TIMI 0xFD9F
 
+#define EXTBIO 0xFFCA
+#define CALL_HL 70001$
+
 // Warning: execution fails when the buffers are put inside main.
 // In main they're in the stack space, and here it's global.
 char buffer[1024];
@@ -64,7 +67,8 @@ unsigned char VDP_regs[8];
 unsigned char slots;
 unsigned char slot_p0, slot_p1;
 
-int segment;
+unsigned char segment;
+unsigned char segments[4];
 int fH;
 unsigned int i, j;
 
@@ -190,28 +194,90 @@ void main(char *argv[], int argc) {
   // Don't attempt to put the ROM - DEBUG
   //rom_selected_p0 = 0;
   //rom_selected_p1 = 0;
+  
+  // Allocate segments
+  /*	Parameter:	A = 0
+			D = 4 (device number of mapper support)
+			E = 1
+	Result:		A = slot address of primary mapper
+			DE = reserved
+			HL = start address of mapper variable table
+  */
+  __asm
+      push af
+      push de
+      push hl
+      push iy
+      
+      xor a // A=0
+      ld de, #0x0402 // D=4, E=2
+      call EXTBIO
+      // Now we have in HL the address of the mapper call table
+      
+      xor a
+      ld b, a // A=0, B=0
+      call CALL_HL // ALL_SEG
+      
+      ld iy, #_segments
+      ld 0 (iy), a
+      //
+      xor a
+      ld b, a // A=0, B=0
+      call CALL_HL // ALL_SEG
+      
+      ld iy, #_segments
+      ld 1 (iy), a
+      //
+      xor a
+      ld b, a // A=0, B=0
+      call CALL_HL // ALL_SEG
+      
+      ld iy, #_segments
+      ld 2 (iy), a
+      //
+      xor a
+      ld b, a // A=0, B=0
+      call CALL_HL // ALL_SEG
+
+      ld iy, #_segments
+      ld 3 (iy), a
+
+      pop iy
+      pop hl
+      pop de
+      pop af
+      jp 70002$ // Get out
+
+CALL_HL:
+    jp (hl)
+70002$:
+  __endasm;
 
   // Read RAM
-  for (segment = 10; segment < 14; segment++) {
+  for (i = 0; i < 4; i++) {
+      segment = segments[i];
       printf("Filling segment %d\r", segment);
 
       to = (unsigned char *)0x8000;
 
-      for (i = 0; i < 16*1024 / sizeof(buffer); i++) {
+      for (j = 0; j < 16*1024 / sizeof(buffer); j++) {
           Read(fH, buffer, sizeof(buffer));
 
           // Don't overwritte MSX-DOS variables area
-          if (rom_selected_p0 && regs.im != 2 && segment == 13 && i >= 14)
-              from = (unsigned char *)(0xC000 + i*sizeof(buffer));
+          if (rom_selected_p0 && regs.im != 2 && segment == segments[3] && j >= 14)
+              from = (unsigned char *)(0xC000 + j*sizeof(buffer));
           else
               from = buffer; // If IM = 2 actually we don't care about overwritting
 
+          #ifdef DEBUG
+          printf("Copy to "); PrintHex((unsigned int)to); printf("\r\n");
+          #endif
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
           MemCopy(to, from, sizeof(buffer));
           
           // If rom_selected_p0, we need to copy the
           // H.KEYI and H.TIMI hooks the game configured
-          if (rom_selected_p0 && segment == 13 && i == 15) {
+          if (rom_selected_p0 && segment == segments[3] && j == 15) {
               MemCopy((unsigned char*)(to + H_TIMI % sizeof(buffer)), (unsigned char*)(buffer + H_TIMI % sizeof(buffer)), 3);
               MemCopy((unsigned char*)(to + H_KEYI % sizeof(buffer)), (unsigned char*)(buffer + H_KEYI % sizeof(buffer)), 3);
           }
@@ -231,7 +297,6 @@ void main(char *argv[], int argc) {
   #ifndef DEBUG
   unsigned char VRAM_Kb = GetVramSize();
   FillVram(0, 0, VRAM_Kb*1024);
-  //SetBorderColor(1);
 
   // Dump 64 Kb of VRAM
   for (i = 0; i < 16*1024; i += sizeof(buffer)) {
@@ -243,21 +308,22 @@ void main(char *argv[], int argc) {
   
   Close(fH);
 
-  // Put page 3 of the game (segment 13) in our page 3
-  // Put page 2 of the game (segment 12) in our page 2
-  // Put page 1 of the game (segment 11) in our page 1
+  // Put page 3 of the game (segments[3]]) in our page 3
+  // Put page 2 of the game (segments[2]) in our page 2
+  // Put page 1 of the game (segments[1]) in our page 1
   // Page 0 not yet, since it's where we're executing now!
   #ifndef DEBUG
   __asm
   di
-
-  ld a, #13
+  
+  ld iy, #_segments
+  ld a, 3 (iy)
   out (0xFF), a
 
-  ld a, #12
+  ld a, 2 (iy)
   out (0xFE), a
 
-  ld a, #11
+  ld a, 1 (iy)
   out (0xFD), a
  __endasm;
  #endif
@@ -335,9 +401,9 @@ void main(char *argv[], int argc) {
           *ptr++ = 0xFD; // OUT (0xFD), A
       }
   } else {
-      // Set segment 10 for page 0
+      // Set segments[0]for page 0
       *ptr++ = 0x3E;
-      *ptr++ = 10; // LD A, 10
+      *ptr++ = segments[0]; // LD A, START_SEGMENT
       //
       *ptr++ = 0xD3;
       *ptr++ = 0xFC; // OUT (0xFC), A
