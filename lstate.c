@@ -195,63 +195,72 @@ void main(char *argv[], int argc) {
   //rom_selected_p0 = 0;
   //rom_selected_p1 = 0;
   
-  // Allocate segments
-  /*	Parameter:	A = 0
-			D = 4 (device number of mapper support)
-			E = 1
-	Result:		A = slot address of primary mapper
-			DE = reserved
-			HL = start address of mapper variable table
-  */
-  __asm
-      push af
-      push de
-      push hl
-      push iy
-      
-      xor a // A=0
-      ld de, #0x0402 // D=4, E=2
-      call EXTBIO
-      // Now we have in HL the address of the mapper call table
-      
-      xor a
-      ld b, a // A=0, B=0
-      call CALL_HL // ALL_SEG
-      
-      ld iy, #_segments
-      ld 0 (iy), a
-      //
-      xor a
-      ld b, a // A=0, B=0
-      call CALL_HL // ALL_SEG
-      
-      ld iy, #_segments
-      ld 1 (iy), a
-      //
-      xor a
-      ld b, a // A=0, B=0
-      call CALL_HL // ALL_SEG
-      
-      ld iy, #_segments
-      ld 2 (iy), a
-      //
-      xor a
-      ld b, a // A=0, B=0
-      call CALL_HL // ALL_SEG
+  // Allocate segment if MSX DOS 2.
+  // Hardcode them in MSX DOS 2.
+  
+  if (GetOSVersion() >= 2) {
+      // Allocate segments
+      /*	Parameter:	A = 0
+                D = 4 (device number of mapper support)
+                E = 1
+        Result:		A = slot address of primary mapper
+                DE = reserved
+                HL = start address of mapper variable table
+      */
+      __asm
+          push af
+          push de
+          push hl
+          push iy
+          
+          xor a // A=0
+          ld de, #0x0402 // D=4, E=2
+          call EXTBIO
+          // Now we have in HL the address of the mapper call table
+          
+          xor a
+          ld b, a // A=0, B=0
+          call CALL_HL // ALL_SEG
+          
+          ld iy, #_segments
+          ld 0 (iy), a
+          //
+          xor a
+          ld b, a // A=0, B=0
+          call CALL_HL // ALL_SEG
+          
+          ld iy, #_segments
+          ld 1 (iy), a
+          //
+          xor a
+          ld b, a // A=0, B=0
+          call CALL_HL // ALL_SEG
+          
+          ld iy, #_segments
+          ld 2 (iy), a
+          //
+          xor a
+          ld b, a // A=0, B=0
+          call CALL_HL // ALL_SEG
 
-      ld iy, #_segments
-      ld 3 (iy), a
+          ld iy, #_segments
+          ld 3 (iy), a
 
-      pop iy
-      pop hl
-      pop de
-      pop af
-      jp 70002$ // Get out
+          pop iy
+          pop hl
+          pop de
+          pop af
+          jp 70002$ // Get out
 
-CALL_HL:
-    jp (hl)
-70002$:
-  __endasm;
+    CALL_HL:
+        jp (hl)
+    70002$:
+      __endasm;
+  }
+  else {
+      for (i = 0; i < 4; i++)
+          segments[i] = i + 4;
+  }
 
   // Read RAM
   for (i = 0; i < 4; i++) {
