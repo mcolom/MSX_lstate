@@ -17,6 +17,8 @@
 ; Compile and test:
 ; z80asm rom.asm --label=symbols.txt -o rom.rom && openmsx -machine devel rom.rom
 
+; z0asm rom.asm --label=symbols.txt -o rom.rom && ./stt2rom.py ~/.openMSX/savestates/bounder.oms && openmsx -machine devel rom.rom
+
 ; Include MSX BIOS and system variables definitions
 include 'headers/bios.asm'
 
@@ -62,10 +64,11 @@ include 'memory.asm'
 ;ld SP, 0x5678
 ;JP 0x2345
 
+INTERRUPT_COPY: equ 0x50 ; Copy INTERRUPT_COPY bytes into the Z80's interrupt table
+BYTES_INTERRUPT_COPY: equ 0x500 ; 0xff - 0x50 ; Make sure this is the size of our code
 
 start:
     di
-
     ; Let's copy ourselves to page 0 (RAM)
 
     ; Choose this memory configuration
@@ -78,12 +81,13 @@ start:
     out (0xa8), a
 
     ; Copy ourselves to 0x50, in the Z80 interrupt table
-    ld de, 0x50
+    ld de, INTERRUPT_COPY
     ld hl, start
-    ld bc, 0x500 ; 0xff - 0x50 ; Make sure this is the size of our code
+    ld bc, BYTES_INTERRUPT_COPY
     ldir
     
-    jp 0x63
+    jp END_NON_REUBICATED_CODE - start + INTERRUPT_COPY
+END_NON_REUBICATED_CODE: ; 4037
     
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;    ORG 0x63
 
@@ -95,40 +99,32 @@ start:
     ;       └┴─────── Page 3 (#C000-#FFFF) --> 3 (RAM)
     
     ; Page X: segment 2 + 2*X
-    
-    ; Load VDP registers
-    ld a, 10 ; Segment 10: VDP registers
-    ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
-
-    ld b, 8
-    ld hl, 0x8000
-    ld c, 128
-    regs_write_loop:
-        ld a, (hl)
-        
-        out (0x99), a
-        ld a, c
-        out (0x99), a
-        
-        inc c
-        inc hl
-        djnz regs_write_loop
-    
 
     ; Load VRAM
     ld a, 11 ; Segment 11: VRAM
     ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
     inc a
     ld (Seg_PA000_SW), a ; 0xA000 - 0xBFFF
+    
+
+    
 
     xor a
-    out (0x99), a
-    ld a, 14 + 128
-    out (0x99), a
+    ld b, a
+    ld a, 14 + 128 ; Write 0 to reg_14
+    
+    ld c, 0x99
+    out (c), b ; value
+    out (c), a ; reg + 128
+
+    ; a: reg + 128
+    ; b: value
+
+    ld c, 0x99
     xor a
-    out (0x99), a
-    or 64
-    out (0x99), a
+    ld b, 64
+    out (c), a
+    out (c), b
     
     ;ld c, 0x98
     ld hl, 0x8000
@@ -144,10 +140,24 @@ start:
         or c
         jr nz, write_vram
         
-    
+    ; Load VDP registers
+    ld a, 10 ; Segment 10: VDP registers
+    ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
 
+    ld b, 8
+    ld hl, 0x8000 + 1
+    ld c, 128
+    regs_write_loop:
+        ld a, (hl)
+        
+        out (0x99), a
+        ld a, c
+        out (0x99), a
+        
+        inc c
+        inc hl
+        djnz regs_write_loop
 
-    
 
     ld a, 2 ; Segment 2-3: game's page 0
     ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
@@ -278,6 +288,14 @@ start:
     ;ds 6*2, 0
     REGISTERS_END:
 
+
+write_vdp_reg:
+    ; a: reg + 128
+    ; b: value
+    ld c, 0x99
+    out (c), b ; value
+    out (c), a ; reg + 128
+    ret
 
 MAIN_CODE_END:
 ; Padding zeros to fill 0x4000 ... 0x7FFF

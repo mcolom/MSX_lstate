@@ -20,6 +20,7 @@ BRDATR:	equ $fcb2
 BREAKX:	equ $00b7
 BUF:	equ $f55e
 BUFMIN:	equ $f55d
+BYTES_INTERRUPT_COPY:	equ $0500
 CALATR:	equ $0087
 CALBAS:	equ $0159
 CALLF:	equ $0030
@@ -102,13 +103,14 @@ DRWFLG:	equ $fcbb
 DRWSCL:	equ $fcbc
 DSCTMP:	equ $f698
 DSPFNK:	equ $00cf
-EI_CODE:	equ $40f5
+EI_CODE:	equ $40fa
 ENAINT:	equ $ffd4
 ENASCR:	equ $0044
 ENASLT:	equ $0024
 ENDBUF:	equ $f660
 ENDFOR:	equ $f6a1
 ENDPRG:	equ $f40f
+END_NON_REUBICATED_CODE:	equ $4037
 ENSTOP:	equ $fbb0
 EOL:	equ $0168
 ERAFNK:	equ $00cc
@@ -278,7 +280,7 @@ H_TIMI:	equ $fd9f
 H_TOTE:	equ $fdbd
 H_TRMN:	equ $ff61
 H_WIDT:	equ $ff84
-IM_CODE:	equ $40f3
+IM_CODE:	equ $40f8
 INIFNK:	equ $003e
 INIGRP:	equ $0072
 INIMLT:	equ $0075
@@ -290,11 +292,12 @@ INIT_MEMORY:	equ $4010
 INLIN:	equ $00b1
 INSFLG:	equ $fca8
 INTCNT:	equ $fca2
+INTERRUPT_COPY:	equ $0050
 INTFLG:	equ $fc9b
 INTVAL:	equ $fca0
 ISFLIO:	equ $014a
 JIFFY:	equ $fc9e
-JUMP_TO_STATE_PC:	equ $40f6
+JUMP_TO_STATE_PC:	equ $40fb
 KANAMD:	equ $fcad
 KANAST:	equ $fcac
 KBUF:	equ $f41f
@@ -304,7 +307,7 @@ KILBUF:	equ $0156
 KNJPRT:	equ $01bd
 LDIRMV:	equ $0059
 LDIRVM:	equ $005c
-LD_SP_CODE:	equ $40f0
+LD_SP_CODE:	equ $40f5
 LFPROG:	equ $f954
 LINL32:	equ $f3af
 LINL40:	equ $f3ae
@@ -323,7 +326,7 @@ LPTPOS:	equ $f415
 LPTSTT:	equ $00a8
 LSTCOM:	equ $fb1f
 LSTMOD:	equ $fb20
-MAIN_CODE_END:	equ $4105
+MAIN_CODE_END:	equ $4111
 MAXDEL:	equ $f92f
 MAXFIL:	equ $f85f
 MAXUPD:	equ $f3ec
@@ -404,8 +407,8 @@ RDSLT:	equ $000c
 RDVDP:	equ $013e
 RDVRM:	equ $004a
 REDCLK:	equ $01f5
-REGISTERS:	equ $40f9
-REGISTERS_END:	equ $4105
+REGISTERS:	equ $40fe
+REGISTERS_END:	equ $410a
 REPCNT:	equ $f3f7
 RG0SAV:	equ $f3df
 RG1SAV:	equ $f3e0
@@ -514,6 +517,7 @@ WRTVRM:	equ $004d
 WSLREG:	equ $013b
 XSAVE:	equ $fafe
 YSAVE:	equ $fb00
-regs_write_loop:	equ $4043
+regs_write_loop:	equ $406e
 start:	equ $4024
-write_vram:	equ $406a
+write_vdp_reg:	equ $410a
+write_vram:	equ $4059

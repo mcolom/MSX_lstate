@@ -60,7 +60,7 @@ with gzip.open(args.in_filename) as f:
 
 root = tree.getroot()
 
-registers_seek = 0x40f9 - 0x4000
+registers_seek = 0x40fe - 0x4000
 print(hex(registers_seek))
 
 with open("rom.rom", "r+b") as f:
@@ -85,7 +85,7 @@ with open("rom.rom", "r+b") as f:
     vregs = root.findall("machine/config/device[@type='VDP']/registers/")
     vregs_bytes = bytes([int(vreg.text) for vreg in vregs[0:8]])
     
-    vdp_registers_offset = get_segment_offset(10)
+    vdp_registers_offset = get_segment_offset(10) + 1
     print(f"VDP registers seek to {hex(vdp_registers_offset)}")
     f.seek(vdp_registers_offset)
     print(vregs_bytes)
