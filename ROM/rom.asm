@@ -116,7 +116,7 @@ start:
     
 
     ; Load VRAM
-    ld a, 11 ; Segment 10: VDP registers
+    ld a, 11 ; Segment 11: VRAM
     ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
     inc a
     ld (Seg_PA000_SW), a ; 0xA000 - 0xBFFF
@@ -161,10 +161,11 @@ start:
     ldir
     
     ; Copy page 0
+    CODE_SIZE: equ 0x200
     ; Don't overwrite our code! (we put 0x200 for the moment...)
-    ld de, 0x200
-    ld hl, 0x8200
-    ld bc, 0x4000 - 0x200
+    ld de, CODE_SIZE
+    ld hl, 0x8000 + CODE_SIZE
+    ld bc, 0x4000 - CODE_SIZE
     ldir
     
     ;;;

@@ -98,7 +98,7 @@ with open("rom.rom", "r+b") as f:
     decoded_data = zlib.decompress(base64.b64decode(vram_base64))
 
     vram_segment = get_segment_offset(11)
-    print(f"VRAM seek to {hex(vram_segment)}")
+    print(f"VRAM seek to {hex(vram_segment)}, {len(decoded_data)} bytes")
     f.seek(vram_segment)
     f.write(decoded_data)
     

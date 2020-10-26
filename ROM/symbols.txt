@@ -56,6 +56,7 @@ CMASK:	equ $f92c
 CNPNTS:	equ $f936
 CNSDFG:	equ $f3de
 CNVCHR:	equ $00ab
+CODE_SIZE:	equ $0200
 CODSAV:	equ $fbcc
 COMMSK:	equ $fb1e
 CONLO:	equ $f66a
