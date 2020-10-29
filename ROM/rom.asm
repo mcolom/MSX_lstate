@@ -17,13 +17,15 @@
 ; Compile and test:
 ; z80asm rom.asm --label=symbols.txt -o rom.rom && openmsx -machine devel rom.rom
 
-; z0asm rom.asm --label=symbols.txt -o rom.rom && ./stt2rom.py ~/.openMSX/savestates/bounder.oms && openmsx -machine devel rom.rom
+; z80asm rom.asm --label=symbols.txt -o rom.rom && ./stt2rom.py ~/.openMSX/savestates/bounder.oms && openmsx -machine devel rom.rom
 
 ; Include MSX BIOS and system variables definitions
 include 'headers/bios.asm'
 
 
 org 0x4000
+CART_START:
+
 ; MSX Cartridge header
 defb     $41
 defb     $42
@@ -65,7 +67,7 @@ include 'memory.asm'
 ;JP 0x2345
 
 INTERRUPT_COPY: equ 0x50 ; Copy INTERRUPT_COPY bytes into the Z80's interrupt table
-BYTES_INTERRUPT_COPY: equ 0x500 ; 0xff - 0x50 ; Make sure this is the size of our code
+INTERRUPT_COPY_BYTES: equ 0x500 ; 0xff - 0x50 ; Make sure this is the size of our code
 
 start:
     di
@@ -83,14 +85,17 @@ start:
     ; Copy ourselves to 0x50, in the Z80 interrupt table
     ld de, INTERRUPT_COPY
     ld hl, start
-    ld bc, BYTES_INTERRUPT_COPY
+    ld bc, INTERRUPT_COPY_BYTES
     ldir
     
-    jp END_NON_REUBICATED_CODE - start + INTERRUPT_COPY
+    jp START_REUBICATED_CODE
 END_NON_REUBICATED_CODE: ; 4037
-    
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;    ORG 0x63
 
+; Don't more with equ from here: the compiler needs to see the other variables before
+START_REUBICATED_CODE: equ END_NON_REUBICATED_CODE - start + INTERRUPT_COPY
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;    ORG 0x63 = START_REUBICATED_CODE
+ORG START_REUBICATED_CODE
     ; Current memory configuration
     ;       33221100
     ;       ││││││└┴─ Page 0 (#0000-#3FFF) --> 0 (RAM)
@@ -99,7 +104,7 @@ END_NON_REUBICATED_CODE: ; 4037
     ;       └┴─────── Page 3 (#C000-#FFFF) --> 3 (RAM)
     
     ; Page X: segment 2 + 2*X
-
+    
     ; Load VRAM
     ld a, 11 ; Segment 11: VRAM
     ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
@@ -251,17 +256,13 @@ END_NON_REUBICATED_CODE: ; 4037
     ld a, 0xff
     out (0xa8), a
 
-
-
-
-    
-    ld sp, REGISTERS
-    pop iy
-    pop ix
-    pop hl
-    pop de
-    pop bc
+    ld sp, REGISTERS    
     pop af
+    pop bc
+    pop de
+    pop hl
+    pop ix
+    pop iy
 
     LD_SP_CODE:
     ld sp, 0x03e0 ; To overwrite
@@ -279,13 +280,8 @@ END_NON_REUBICATED_CODE: ; 4037
 
 
     REGISTERS:
-    dw 0x5014
-    dw 0x5098
-    dw 0x01a7
-    dw 0x7608
-    dw 0xd967
-    dw 0x5c3a
-    ;ds 6*2, 0
+    ;dw 0
+    ds 6*2, 0
     REGISTERS_END:
 
 
@@ -299,7 +295,7 @@ write_vdp_reg:
 
 MAIN_CODE_END:
 ; Padding zeros to fill 0x4000 ... 0x7FFF
-ds 0x8000 - MAIN_CODE_END, 0
+ds 0x4000 - (END_NON_REUBICATED_CODE - CART_START + MAIN_CODE_END - START_REUBICATED_CODE), 0
 
 ; Cart segments
 org 0x8000
