@@ -236,7 +236,6 @@ ORG START_REUBICATED_CODE
     EI_CODE:
     ei ; To overwrite
 
-    ei
     ; Jump to state's PC
     JUMP_TO_STATE_PC:
     jp 0x0000; To overwrite
