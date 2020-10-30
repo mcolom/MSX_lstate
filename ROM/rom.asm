@@ -231,11 +231,12 @@ ORG START_REUBICATED_CODE
     ; IFF1, IM, I ; [ToDo]
     
     IM_CODE:
-    im 1 ; Overwrite to get the right IM
+    im 1 ; To overwrite
     
     EI_CODE:
-    ei ; Overwrite with NOP if DI (IFF1 = 0)
+    ei ; To overwrite
 
+    ei
     ; Jump to state's PC
     JUMP_TO_STATE_PC:
     jp 0x0000; To overwrite

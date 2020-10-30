@@ -177,5 +177,8 @@ with open("rom.rom", "r+b") as f:
     # Overwrite EI code
     ei_seek = get_reubicated_offset(symbols["EI_CODE"], END_NON_REUBICATED_CODE, CART_START, START_REUBICATED_CODE)
     f.seek(ei_seek)
-    if regs['iff1'] == 0:
-        f.write(0) # Disable EI
+    print(regs['iff1'])
+    if regs['iff1']:
+        f.write(b"\xfb") # EI
+    else:
+        f.write(b"\xf3") # DI

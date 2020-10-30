@@ -298,7 +298,7 @@ INTFLG:	equ $fc9b
 INTVAL:	equ $fca0
 ISFLIO:	equ $014a
 JIFFY:	equ $fc9e
-JUMP_TO_STATE_PC:	equ $0117
+JUMP_TO_STATE_PC:	equ $0118
 KANAMD:	equ $fcad
 KANAST:	equ $fcac
 KBUF:	equ $f41f
@@ -327,7 +327,7 @@ LPTPOS:	equ $f415
 LPTSTT:	equ $00a8
 LSTCOM:	equ $fb1f
 LSTMOD:	equ $fb20
-MAIN_CODE_END:	equ $0139
+MAIN_CODE_END:	equ $0137
 MAXDEL:	equ $f92f
 MAXFIL:	equ $f85f
 MAXUPD:	equ $f3ec
@@ -408,7 +408,7 @@ RDSLT:	equ $000c
 RDVDP:	equ $013e
 RDVRM:	equ $004a
 REDCLK:	equ $01f5
-REGISTERS:	equ $011a
+REGISTERS:	equ $011b
 REPCNT:	equ $f3f7
 RG0SAV:	equ $f3df
 RG1SAV:	equ $f3e0
@@ -519,7 +519,7 @@ WSLREG:	equ $013b
 XSAVE:	equ $fafe
 YSAVE:	equ $fb00
 regs_write_loop:	equ $0096
-set_two_segments_P8000:	equ $0131
+set_two_segments_P8000:	equ $012f
 start:	equ $4024
-write_vdp_reg:	equ $0126
+write_vdp_reg:	equ $0127
 write_vram:	equ $0081
