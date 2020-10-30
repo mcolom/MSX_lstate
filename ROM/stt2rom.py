@@ -125,6 +125,12 @@ with open("rom.rom", "r+b") as f:
     z80_word = int.to_bytes(regs['pc'], length=2, byteorder='little')
     f.write(z80_word)
     
+    # Overwrite SP
+    sp_seek = 1 + get_reubicated_offset(symbols["LD_SP_CODE"], END_NON_REUBICATED_CODE, CART_START, START_REUBICATED_CODE)
+    f.seek(sp_seek)
+    z80_word = int.to_bytes(regs['sp'], length=2, byteorder='little')
+    f.write(z80_word)
+    
 
     # Save VDP registers
     vregs = root.findall("machine/config/device[@type='VDP']/registers/")

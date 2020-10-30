@@ -103,7 +103,7 @@ DRWFLG:	equ $fcbb
 DRWSCL:	equ $fcbc
 DSCTMP:	equ $f698
 DSPFNK:	equ $00cf
-EI_CODE:	equ $0116
+EI_CODE:	equ $010b
 ENAINT:	equ $ffd4
 ENASCR:	equ $0044
 ENASLT:	equ $0024
@@ -280,7 +280,7 @@ H_TIMI:	equ $fd9f
 H_TOTE:	equ $fdbd
 H_TRMN:	equ $ff61
 H_WIDT:	equ $ff84
-IM_CODE:	equ $0114
+IM_CODE:	equ $0109
 INIFNK:	equ $003e
 INIGRP:	equ $0072
 INIMLT:	equ $0075
@@ -298,7 +298,7 @@ INTFLG:	equ $fc9b
 INTVAL:	equ $fca0
 ISFLIO:	equ $014a
 JIFFY:	equ $fc9e
-JUMP_TO_STATE_PC:	equ $0118
+JUMP_TO_STATE_PC:	equ $010c
 KANAMD:	equ $fcad
 KANAST:	equ $fcac
 KBUF:	equ $f41f
@@ -308,7 +308,7 @@ KILBUF:	equ $0156
 KNJPRT:	equ $01bd
 LDIRMV:	equ $0059
 LDIRVM:	equ $005c
-LD_SP_CODE:	equ $0111
+LD_SP_CODE:	equ $0106
 LFPROG:	equ $f954
 LINL32:	equ $f3af
 LINL40:	equ $f3ae
@@ -347,6 +347,8 @@ MLTNAM:	equ $f3d1
 MLTPAT:	equ $f3d9
 MODE:	equ $fafc
 MUSICF:	equ $fb3f
+MY_STACK:	equ $011b
+MY_STACK_END:	equ $011d
 NAMBAS:	equ $f922
 NEWKEY:	equ $fbe5
 NEWPAD:	equ $01ad
@@ -408,7 +410,7 @@ RDSLT:	equ $000c
 RDVDP:	equ $013e
 RDVRM:	equ $004a
 REDCLK:	equ $01f5
-REGISTERS:	equ $011b
+REGISTERS:	equ $010f
 REPCNT:	equ $f3f7
 RG0SAV:	equ $f3df
 RG1SAV:	equ $f3e0
@@ -518,8 +520,9 @@ WRTVRM:	equ $004d
 WSLREG:	equ $013b
 XSAVE:	equ $fafe
 YSAVE:	equ $fb00
+ldir_two_segments:	equ $012d
 regs_write_loop:	equ $0096
-set_two_segments_P8000:	equ $012f
+set_two_segments_P8000:	equ $0125
 start:	equ $4024
-write_vdp_reg:	equ $0127
-write_vram:	equ $0081
+write_vdp_reg:	equ $011d
+write_vram:	equ $007f

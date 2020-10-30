@@ -69,6 +69,8 @@ START_REUBICATED_CODE: equ END_NON_REUBICATED_CODE - start + INTERRUPT_COPY
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;    ORG 0x63 = START_REUBICATED_CODE
 ORG START_REUBICATED_CODE
+    ld sp, MY_STACK_END
+
     ; Current memory configuratset_two_segments_P8000ion
     ;       33221100
     ;       ││││││└┴─ Page 0 (#0000-#3FFF) --> 0 (RAM)
@@ -82,24 +84,17 @@ ORG START_REUBICATED_CODE
     ld a, 11 ; Segment 11: VRAM
     call set_two_segments_P8000
 
+    ; Write 0 to VDP reg #14
+    xor a
+    ld b, a ; Value = 0
+    ld a, 14 + 128
+    call write_vdp_reg
+
     xor a
     ld b, a
-    ld a, 14 + 128 ; Write 0 to reg_14
-    
-    ld c, 0x99
-    out (c), b ; value
-    out (c), a ; reg + 128
+    ld a, 64
+    call write_vdp_reg
 
-    ; a: reg + 128
-    ; b: value
-
-    ld c, 0x99
-    xor a
-    ld b, 64
-    out (c), a
-    out (c), b
-    
-    ;ld c, 0x98
     ld hl, 0x8000
     ld bc, 0x4000
     
@@ -119,27 +114,26 @@ ORG START_REUBICATED_CODE
 
     ld b, 8
     ld hl, 0x8000
-    ld c, 128
+    ld c, 0x99
+    ld d, 128
+
     regs_write_loop:
         ld a, (hl)
         
-        out (0x99), a
-        ld a, c
-        out (0x99), a
+        out (c), a
+        out (c), d
         
-        inc c
+        inc d
         inc hl
         djnz regs_write_loop
 
 
-    ld a, 2 ; Segment 2-3: game's page 0
-    call set_two_segments_P8000
-
     ; Restore first part of the Z80's interrupt table
+    ld a, 2 ; Segment 2-3: game's page 0
     ld de, 0x0
     ld hl, 0x8000
     ld bc, 0x40
-    ldir
+    call ldir_two_segments
     
     ; Copy page 0
     CODE_SIZE: equ 0x200
@@ -160,25 +154,21 @@ ORG START_REUBICATED_CODE
     ld a, 11011111b
     out (0xa8), a
     
-    ld a, 4 ; Segments 4-5: game's page 1
-    call set_two_segments_P8000
-    
-    ; Copy page 1
+    ld a, 4 ; Segments 4-5: game's page 1    
     ld de, 0x4000
     ld hl, 0x8000
     ld bc, 0x4000
-    ldir
+    push hl
+    push bc
+    call ldir_two_segments ; Copy page 1
     
     ;;;
     
     ld a, 8 ; Segments 8-9 game's page 3
-    call set_two_segments_P8000
-    
-    ; Copy page 1
     ld de, 0xC000
-    ld hl, 0x8000
-    ld bc, 0x4000
-    ldir
+    pop bc
+    pop hl
+    call ldir_two_segments ; Copy page 1
     
     ; Set this memory configuration
     ;       33221100
@@ -191,21 +181,22 @@ ORG START_REUBICATED_CODE
 
     ld a, 6 ; Segment 6-8 game's page 2
     ;ld (Seg_P4000_SW), a ; This doesn't seem to work :/
-    ;inc a
     ld (Seg_P6000_SW), a
 
     ; Copy page 2
     ld de, 0x8000
     ld hl, 0x6000
     ld bc, 0x2000
+    push hl
+    push bc
     ldir
     
     inc a
     ld (Seg_P6000_SW), a
 
     ld de, 0xa000
-    ld hl, 0x6000
-    ld bc, 0x2000
+    pop bc
+    pop hl
     ldir
 
 
@@ -227,8 +218,7 @@ ORG START_REUBICATED_CODE
     pop iy
 
     LD_SP_CODE:
-    ld sp, 0x03e0 ; To overwrite
-    ; IFF1, IM, I ; [ToDo]
+    ld sp, 0x000 ; To overwrite
     
     IM_CODE:
     im 1 ; To overwrite
@@ -242,6 +232,10 @@ ORG START_REUBICATED_CODE
 
     REGISTERS:
     ds 6*2, 0
+    
+    MY_STACK:
+    db 10, 0
+    MY_STACK_END:
 
 
 write_vdp_reg:
@@ -260,6 +254,18 @@ set_two_segments_P8000:
     ld (Seg_PA000_SW), a ; 0xA000 - 0xBFFF
     ret
 
+
+ldir_two_segments:
+    ; a, a+1: segments
+    ; de: destination
+    ; hl: origin
+    ; bc: number of bytes
+    ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
+    inc a
+    ld (Seg_PA000_SW), a ; 0xA000 - 0xBFFF
+
+    ldir
+    ret
 
 MAIN_CODE_END:
 ; Padding zeros to fill 0x4000 ... 0x7FFF
