@@ -39,33 +39,6 @@ defw     $0000
 
 include 'memory.asm'
 
-; Print string @DE
-;PRINT_STR:
-;    push af
-;print_str_loop:
-;	ld a,(de)
-;	inc de
-;	or a
-;	jp z, print_str_ret
-;	call CHPUT
-;	jr print_str_loop
-;print_str_ret:    
-;    pop af
-;    ret
-
-;MESSAGE_CUIDADO_NOBUKADO:
-;defb 0xAD ; Interrogación invertida
-;defb "Cuidado, Nobukado!", 0
-
-
-;ld bc, 0x1234 ; PC
-;push bc
-;ld bc, 0x1234 ; SP
-;push bc
-
-;ld SP, 0x5678
-;JP 0x2345
-
 INTERRUPT_COPY: equ 0x50 ; Copy INTERRUPT_COPY bytes into the Z80's interrupt table
 INTERRUPT_COPY_BYTES: equ 0x500 ; 0xff - 0x50 ; Make sure this is the size of our code
 
@@ -96,7 +69,7 @@ START_REUBICATED_CODE: equ END_NON_REUBICATED_CODE - start + INTERRUPT_COPY
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;    ORG 0x63 = START_REUBICATED_CODE
 ORG START_REUBICATED_CODE
-    ; Current memory configuration
+    ; Current memory configuratset_two_segments_P8000ion
     ;       33221100
     ;       ││││││└┴─ Page 0 (#0000-#3FFF) --> 0 (RAM)
     ;       ││││└┴─── Page 1 (#4000-#7FFF) --> 1 (CART CODE)
@@ -107,12 +80,7 @@ ORG START_REUBICATED_CODE
     
     ; Load VRAM
     ld a, 11 ; Segment 11: VRAM
-    ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
-    inc a
-    ld (Seg_PA000_SW), a ; 0xA000 - 0xBFFF
-    
-
-    
+    call set_two_segments_P8000
 
     xor a
     ld b, a
@@ -150,7 +118,7 @@ ORG START_REUBICATED_CODE
     ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
 
     ld b, 8
-    ld hl, 0x8000 + 1
+    ld hl, 0x8000
     ld c, 128
     regs_write_loop:
         ld a, (hl)
@@ -165,9 +133,7 @@ ORG START_REUBICATED_CODE
 
 
     ld a, 2 ; Segment 2-3: game's page 0
-    ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
-    inc a
-    ld (Seg_PA000_SW), a ; 0xA000 - 0xBFFF
+    call set_two_segments_P8000
 
     ; Restore first part of the Z80's interrupt table
     ld de, 0x0
@@ -195,9 +161,7 @@ ORG START_REUBICATED_CODE
     out (0xa8), a
     
     ld a, 4 ; Segments 4-5: game's page 1
-    ld (Seg_P8000_SW), a
-    inc a
-    ld (Seg_PA000_SW), a
+    call set_two_segments_P8000
     
     ; Copy page 1
     ld de, 0x4000
@@ -208,9 +172,7 @@ ORG START_REUBICATED_CODE
     ;;;
     
     ld a, 8 ; Segments 8-9 game's page 3
-    ld (Seg_P8000_SW), a
-    inc a
-    ld (Seg_PA000_SW), a
+    call set_two_segments_P8000
     
     ; Copy page 1
     ld de, 0xC000
@@ -228,7 +190,7 @@ ORG START_REUBICATED_CODE
     out (0xa8), a
 
     ld a, 6 ; Segment 6-8 game's page 2
-    ;ld (Seg_P4000_SW), a ; This doesn't seem to work :(
+    ;ld (Seg_P4000_SW), a ; This doesn't seem to work :/
     ;inc a
     ld (Seg_P6000_SW), a
 
@@ -269,20 +231,17 @@ ORG START_REUBICATED_CODE
     ; IFF1, IM, I ; [ToDo]
     
     IM_CODE:
-    im 2 ; Overwrite with NOPs if IM == 1
+    im 1 ; Overwrite to get the right IM
     
     EI_CODE:
-    ei ; Overwrite with NOP if DI
+    ei ; Overwrite with NOP if DI (IFF1 = 0)
 
     ; Jump to state's PC
     JUMP_TO_STATE_PC:
-    jp 0x29bd; To overwrite
-
+    jp 0x0000; To overwrite
 
     REGISTERS:
-    ;dw 0
     ds 6*2, 0
-    REGISTERS_END:
 
 
 write_vdp_reg:
@@ -290,8 +249,17 @@ write_vdp_reg:
     ; b: value
     ld c, 0x99
     out (c), b ; value
+    nop
     out (c), a ; reg + 128
     ret
+
+set_two_segments_P8000:
+    ; A: segment. It'll also choose segment A+1
+    ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
+    inc a
+    ld (Seg_PA000_SW), a ; 0xA000 - 0xBFFF
+    ret
+
 
 MAIN_CODE_END:
 ; Padding zeros to fill 0x4000 ... 0x7FFF

@@ -39,6 +39,9 @@ def get_reg(root, name):
     return int(val)
 
 def print_regs(regs):
+    '''
+    Print registers
+    '''
     for name, value in regs.items():
         if type(value) == int:
             print(f"{name}\t=\t0x{value:04x}")
@@ -46,8 +49,36 @@ def print_regs(regs):
             print(f"{name}\t=\t{value}")
 
 def get_segment_offset(seg):
+    '''
+    Obtain the offset of the given segment,
+    from the start of the ROM file.
+    '''
     return seg*0x2000
 
+def read_all_symbols(filename):
+    '''
+    Read all the symbols produced by the assember
+    '''
+    symbols = {}
+
+    with open(filename, "rt") as f:
+        lines = f.readlines()
+        for line in lines:
+            name, _, addr_str = line.split()
+            
+            name = name.strip().replace(":", "")
+
+            addr_str = addr_str.replace("$", "0x")
+            addr = int(addr_str, 16)
+            
+            symbols[name] = addr
+    return symbols
+
+def get_reubicated_offset(position, END_NON_REUBICATED_CODE, CART_START, START_REUBICATED_CODE):
+    '''
+    Return the offset in the cartridge from a reubicated symbol
+    '''
+    return END_NON_REUBICATED_CODE - CART_START + position - START_REUBICATED_CODE
 
 
 parser = argparse.ArgumentParser()
@@ -55,13 +86,20 @@ parser.add_argument("in_filename", type=str, help=".oms openMSX savestate. For e
 #parser.add_argument("out_filename", type=str, help="Output filename. For example: madmix.stt")
 args = parser.parse_args()
 
+symbols = read_all_symbols("symbols.txt")
+
+END_NON_REUBICATED_CODE = symbols["END_NON_REUBICATED_CODE"]
+CART_START = symbols["CART_START"]
+MAIN_CODE_END = symbols["MAIN_CODE_END"]
+START_REUBICATED_CODE = symbols["START_REUBICATED_CODE"]
+
 with gzip.open(args.in_filename) as f:
     tree = ET.parse(f)
 
 root = tree.getroot()
 
-registers_seek = 0x40fe - 0x4000
-print(hex(registers_seek))
+
+
 
 with open("rom.rom", "r+b") as f:
     # Read and save CPU registers
@@ -75,17 +113,24 @@ with open("rom.rom", "r+b") as f:
         regs[name] = get_reg(root, name)
 
     print_regs(regs)
-    
+    registers_seek = get_reubicated_offset(symbols["REGISTERS"], END_NON_REUBICATED_CODE, CART_START, START_REUBICATED_CODE)
     f.seek(registers_seek)
     for register in ['af', 'bc', 'de', 'hl', 'ix', 'iy']:
         z80_word = int.to_bytes(regs[register], length=2, byteorder='little')
         f.write(z80_word)
+        
+    # Overwrite PC
+    pc_seek = 1 + get_reubicated_offset(symbols["JUMP_TO_STATE_PC"], END_NON_REUBICATED_CODE, CART_START, START_REUBICATED_CODE)
+    f.seek(pc_seek)
+    z80_word = int.to_bytes(regs['pc'], length=2, byteorder='little')
+    f.write(z80_word)
+    
 
     # Save VDP registers
     vregs = root.findall("machine/config/device[@type='VDP']/registers/")
     vregs_bytes = bytes([int(vreg.text) for vreg in vregs[0:8]])
     
-    vdp_registers_offset = get_segment_offset(10) + 1
+    vdp_registers_offset = get_segment_offset(10)
     print(f"VDP registers seek to {hex(vdp_registers_offset)}")
     f.seek(vdp_registers_offset)
     print(vregs_bytes)
@@ -112,10 +157,25 @@ with open("rom.rom", "r+b") as f:
     ram_base64 = ram[0].text
 
     decoded_data = zlib.decompress(base64.b64decode(ram_base64))
-    decoded_data = decoded_data.replace(b'\x31\x00\x00', b'\x31\xff\xff') # Patch LD SP, 0x0000 with LD SP, 0xFFFF
+    #decoded_data = decoded_data.replace(b'\x31\x00\x00', b'\x31\xff\xff') # Patch LD SP, 0x0000 with LD SP, 0xFFFF
 
     f.seek(get_segment_offset(2))
     f.write(decoded_data)
     
-
-
+    # Overwrite IM code
+    im_seek = get_reubicated_offset(symbols["IM_CODE"], END_NON_REUBICATED_CODE, CART_START, START_REUBICATED_CODE)
+    f.seek(im_seek)
+    if regs['im'] == 0:
+        f.write(b"\xed\x46")
+    elif regs['im'] == 1:
+        f.write(b"\xed\x56")
+    elif regs['im'] == 2:
+        f.write(b"\xed\x5e")
+    else:
+        raise ValueError(regs['im'])
+    
+    # Overwrite EI code
+    ei_seek = get_reubicated_offset(symbols["EI_CODE"], END_NON_REUBICATED_CODE, CART_START, START_REUBICATED_CODE)
+    f.seek(ei_seek)
+    if regs['iff1'] == 0:
+        f.write(0) # Disable EI
