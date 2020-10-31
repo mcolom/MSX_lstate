@@ -171,6 +171,10 @@ with open("rom.rom", "r+b") as f:
     # Overwrite IM code
     im_seek = get_reubicated_offset(symbols["IM_CODE"], END_NON_REUBICATED_CODE, CART_START, START_REUBICATED_CODE)
     f.seek(im_seek)
+    
+    if regs['im'] == 2:
+        raise ValueError("IM 2 not yet supported")
+    
     if regs['im'] == 0:
         f.write(b"\xed\x46")
     elif regs['im'] == 1:

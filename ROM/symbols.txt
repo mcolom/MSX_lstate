@@ -57,7 +57,6 @@ CMASK:	equ $f92c
 CNPNTS:	equ $f936
 CNSDFG:	equ $f3de
 CNVCHR:	equ $00ab
-CODE_SIZE:	equ $0200
 CODSAV:	equ $fbcc
 COMMSK:	equ $fb1e
 CONLO:	equ $f66a
@@ -103,7 +102,7 @@ DRWFLG:	equ $fcbb
 DRWSCL:	equ $fcbc
 DSCTMP:	equ $f698
 DSPFNK:	equ $00cf
-EI_CODE:	equ $010b
+EI_CODE:	equ $010f
 ENAINT:	equ $ffd4
 ENASCR:	equ $0044
 ENASLT:	equ $0024
@@ -280,7 +279,7 @@ H_TIMI:	equ $fd9f
 H_TOTE:	equ $fdbd
 H_TRMN:	equ $ff61
 H_WIDT:	equ $ff84
-IM_CODE:	equ $0109
+IM_CODE:	equ $010d
 INIFNK:	equ $003e
 INIGRP:	equ $0072
 INIMLT:	equ $0075
@@ -292,13 +291,13 @@ INIT_MEMORY:	equ $4010
 INLIN:	equ $00b1
 INSFLG:	equ $fca8
 INTCNT:	equ $fca2
-INTERRUPT_COPY:	equ $0050
+INTERRUPT_COPY:	equ $003b
 INTERRUPT_COPY_BYTES:	equ $0500
 INTFLG:	equ $fc9b
 INTVAL:	equ $fca0
 ISFLIO:	equ $014a
 JIFFY:	equ $fc9e
-JUMP_TO_STATE_PC:	equ $010c
+JUMP_TO_STATE_PC:	equ $0110
 KANAMD:	equ $fcad
 KANAST:	equ $fcac
 KBUF:	equ $f41f
@@ -308,7 +307,7 @@ KILBUF:	equ $0156
 KNJPRT:	equ $01bd
 LDIRMV:	equ $0059
 LDIRVM:	equ $005c
-LD_SP_CODE:	equ $0106
+LD_SP_CODE:	equ $010a
 LFPROG:	equ $f954
 LINL32:	equ $f3af
 LINL40:	equ $f3ae
@@ -327,7 +326,7 @@ LPTPOS:	equ $f415
 LPTSTT:	equ $00a8
 LSTCOM:	equ $fb1f
 LSTMOD:	equ $fb20
-MAIN_CODE_END:	equ $0137
+MAIN_CODE_END:	equ $013c
 MAXDEL:	equ $f92f
 MAXFIL:	equ $f85f
 MAXUPD:	equ $f3ec
@@ -347,8 +346,7 @@ MLTNAM:	equ $f3d1
 MLTPAT:	equ $f3d9
 MODE:	equ $fafc
 MUSICF:	equ $fb3f
-MY_STACK:	equ $011b
-MY_STACK_END:	equ $011d
+MY_STACK_END:	equ $0121
 NAMBAS:	equ $f922
 NEWKEY:	equ $fbe5
 NEWPAD:	equ $01ad
@@ -410,7 +408,7 @@ RDSLT:	equ $000c
 RDVDP:	equ $013e
 RDVRM:	equ $004a
 REDCLK:	equ $01f5
-REGISTERS:	equ $010f
+REGISTERS:	equ $0113
 REPCNT:	equ $f3f7
 RG0SAV:	equ $f3df
 RG1SAV:	equ $f3e0
@@ -453,7 +451,7 @@ SLTATR:	equ $fcc9
 SLTTBL:	equ $fcc5
 SLTWRK:	equ $fd09
 SNSMAT:	equ $0141
-START_REUBICATED_CODE:	equ $0063
+START_REUBICATED_CODE:	equ $004e
 STATFL:	equ $f3e7
 STKTOP:	equ $f674
 STMOTR:	equ $00f3
@@ -520,9 +518,10 @@ WRTVRM:	equ $004d
 WSLREG:	equ $013b
 XSAVE:	equ $fafe
 YSAVE:	equ $fb00
-ldir_two_segments:	equ $012d
-regs_write_loop:	equ $0096
-set_two_segments_P8000:	equ $0125
+after_page0_fix1:	equ $00e7
+ldir_two_segments:	equ $0136
+regs_write_loop:	equ $0084
+set_two_segments_P8000:	equ $012e
 start:	equ $4024
-write_vdp_reg:	equ $011d
-write_vram:	equ $007f
+write_vdp_reg:	equ $0121
+write_vram:	equ $006a

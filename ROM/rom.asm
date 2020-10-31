@@ -39,7 +39,7 @@ defw     $0000
 
 include 'memory.asm'
 
-INTERRUPT_COPY: equ 0x50 ; Copy INTERRUPT_COPY bytes into the Z80's interrupt table
+INTERRUPT_COPY: equ 0x3b ; Copy INTERRUPT_COPY bytes into the Z80's interrupt table
 INTERRUPT_COPY_BYTES: equ 0x500 ; 0xff - 0x50 ; Make sure this is the size of our code
 
 start:
@@ -61,6 +61,8 @@ start:
     ld bc, INTERRUPT_COPY_BYTES
     ldir
     
+    ;call INIGRP ; Set screen 2 - Why this breaks the video output???
+    
     jp START_REUBICATED_CODE
 END_NON_REUBICATED_CODE: ; 4037
 
@@ -71,7 +73,7 @@ START_REUBICATED_CODE: equ END_NON_REUBICATED_CODE - start + INTERRUPT_COPY
 ORG START_REUBICATED_CODE
     ld sp, MY_STACK_END
 
-    ; Current memory configuratset_two_segments_P8000ion
+    ; Current memory configuration
     ;       33221100
     ;       ││││││└┴─ Page 0 (#0000-#3FFF) --> 0 (RAM)
     ;       ││││└┴─── Page 1 (#4000-#7FFF) --> 1 (CART CODE)
@@ -80,11 +82,13 @@ ORG START_REUBICATED_CODE
     
     ; Page X: segment 2 + 2*X
     
+
     ; Load VRAM
     ld a, 11 ; Segment 11: VRAM
     call set_two_segments_P8000
 
-    ; Write 0 to VDP reg #14
+    ; Set VRAM addr = 0:
+    ; write 0 to VDP reg #14
     xor a
     ld b, a ; Value = 0
     ld a, 14 + 128
@@ -95,22 +99,27 @@ ORG START_REUBICATED_CODE
     ld a, 64
     call write_vdp_reg
 
+    
     ld hl, 0x8000
     ld bc, 0x4000
-    
+    ;
     write_vram:
         ld a, (hl)
         out (0x98), a
+        nop
+        nop
+        nop
+
         inc hl
         
         dec bc
         ld a, b
         or c
         jr nz, write_vram
-        
+
     ; Load VDP registers
     ld a, 10 ; Segment 10: VDP registers
-    ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
+    call set_two_segments_P8000
 
     ld b, 8
     ld hl, 0x8000
@@ -119,8 +128,12 @@ ORG START_REUBICATED_CODE
 
     regs_write_loop:
         ld a, (hl)
-        
+
+        nop
+        nop        
         out (c), a
+        nop
+        nop
         out (c), d
         
         inc d
@@ -134,16 +147,6 @@ ORG START_REUBICATED_CODE
     ld hl, 0x8000
     ld bc, 0x40
     call ldir_two_segments
-    
-    ; Copy page 0
-    CODE_SIZE: equ 0x200
-    ; Don't overwrite our code! (we put 0x200 for the moment...)
-    ld de, CODE_SIZE
-    ld hl, 0x8000 + CODE_SIZE
-    ld bc, 0x4000 - CODE_SIZE
-    ldir
-    
-    ;;;
 
     ; Set this memory configuration
     ;       33221100
@@ -153,6 +156,7 @@ ORG START_REUBICATED_CODE
     ;       └┴─────── Page 3 (#C000-#FFFF) --> 3 (RAM)
     ld a, 11011111b
     out (0xa8), a
+    
     
     ld a, 4 ; Segments 4-5: game's page 1    
     ld de, 0x4000
@@ -198,6 +202,34 @@ ORG START_REUBICATED_CODE
     pop bc
     pop hl
     ldir
+    
+    ; ************ ************ ************ ************ ************
+    ; Fix as much as possible page 0
+
+    ; Set this memory configuration
+    ;       33221100
+    ;       ││││││└┴─ Page 0 (#0000-#3FFF) --> 3 (RAM)
+    ;       ││││└┴─── Page 1 (#4000-#7FFF) --> 3 (RAM)
+    ;       ││└┴───── Page 2 (#8000-#BFFF) --> 1 (CART SEGMENT)
+    ;       └┴─────── Page 3 (#C000-#FFFF) --> 3 (RAM)
+    ld a, 11011111b
+    out (0xa8), a
+    
+    ;
+
+    ld a, 2 ; Segment 2-3: game's page 0
+    ld de, 0x0
+
+    after_page0_fix1:
+    ld bc, after_page0_fix1
+    ld hl, 0x8000
+    call ldir_two_segments
+    
+    ld hl, 0x8000 + REGISTERS
+    ld de, REGISTERS
+    ld bc, 0x4000 - REGISTERS
+    ldir
+    ; ************ ************ ************ ************ ************
 
 
     ; Set this memory configuration
@@ -223,6 +255,7 @@ ORG START_REUBICATED_CODE
     IM_CODE:
     im 1 ; To overwrite
     
+    
     EI_CODE:
     ei ; To overwrite
 
@@ -233,7 +266,7 @@ ORG START_REUBICATED_CODE
     REGISTERS:
     ds 6*2, 0
     
-    MY_STACK:
+    ;MY_STACK:
     db 10, 0
     MY_STACK_END:
 
@@ -242,7 +275,13 @@ write_vdp_reg:
     ; a: reg + 128
     ; b: value
     ld c, 0x99
+
+    nop
+    nop
+    nop
     out (c), b ; value
+    nop
+    nop
     nop
     out (c), a ; reg + 128
     ret
@@ -260,10 +299,7 @@ ldir_two_segments:
     ; de: destination
     ; hl: origin
     ; bc: number of bytes
-    ld (Seg_P8000_SW), a ; 0x8000 - 0x9FFF
-    inc a
-    ld (Seg_PA000_SW), a ; 0xA000 - 0xBFFF
-
+    call set_two_segments_P8000
     ldir
     ret
 
