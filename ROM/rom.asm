@@ -44,6 +44,37 @@ INTERRUPT_COPY_BYTES: equ 0x500 ; 0xff - 0x50 ; Make sure this is the size of ou
 
 start:
     di
+    
+    ; Obtain which subslot is selected in page 3, and set the same for the
+    ; rest of the sublots.
+
+    ld a, (SLTTBL + 3) ; Bits 7-6 = Extended slot on page 3 (C000h~FFFFh)
+    
+    or a ; Clear carry
+    
+    srl a
+    srl a
+    srl a
+    srl a
+    srl a
+    srl a ; 6 bits to the right
+    
+    ld b, a
+    
+    sla a
+    sla a
+    or b
+    
+    sla a
+    sla a
+    or b
+    
+    sla a
+    sla a
+    or b    
+    
+    ld (0xFFFF), a
+    
     ; Let's copy ourselves to page 0 (RAM)
 
     ; Choose this memory configuration
@@ -72,6 +103,7 @@ START_REUBICATED_CODE: equ END_NON_REUBICATED_CODE - start + INTERRUPT_COPY
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;    ORG 0x63 = START_REUBICATED_CODE
 ORG START_REUBICATED_CODE
     ld sp, MY_STACK_END
+    
 
     ; Current memory configuration
     ;       33221100
@@ -81,7 +113,6 @@ ORG START_REUBICATED_CODE
     ;       └┴─────── Page 3 (#C000-#FFFF) --> 3 (RAM)
     
     ; Page X: segment 2 + 2*X
-    
 
     ; Load VRAM
     ld a, 11 ; Segment 11: VRAM
@@ -171,6 +202,7 @@ ORG START_REUBICATED_CODE
     ld a, 8 ; Segments 8-9 game's page 3
     ld de, 0xC000
     pop bc
+    dec bc ; Don't write to 0xFFFF!
     pop hl
     call ldir_two_segments ; Copy page 1
     

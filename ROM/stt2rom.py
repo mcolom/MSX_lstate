@@ -137,9 +137,7 @@ with open("rom.rom", "r+b") as f:
     vregs_bytes = bytes([int(vreg.text) for vreg in vregs[0:8]])
     
     vdp_registers_offset = get_segment_offset(10)
-    print(f"VDP registers seek to {hex(vdp_registers_offset)}")
     f.seek(vdp_registers_offset)
-    print(vregs_bytes)
     f.write(vregs_bytes)
 
     # Save VRAM
@@ -149,7 +147,6 @@ with open("rom.rom", "r+b") as f:
     decoded_data = zlib.decompress(base64.b64decode(vram_base64))
 
     vram_segment = get_segment_offset(11)
-    print(f"VRAM seek to {hex(vram_segment)}, {len(decoded_data)} bytes")
     f.seek(vram_segment)
     f.write(decoded_data)
     
@@ -187,7 +184,6 @@ with open("rom.rom", "r+b") as f:
     # Overwrite EI code
     ei_seek = get_reubicated_offset(symbols["EI_CODE"], END_NON_REUBICATED_CODE, CART_START, START_REUBICATED_CODE)
     f.seek(ei_seek)
-    print(regs['iff1'])
     if regs['iff1']:
         f.write(b"\xfb") # EI
     else:
