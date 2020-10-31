@@ -165,6 +165,18 @@ with open("rom.rom", "r+b") as f:
     f.seek(get_segment_offset(2))
     f.write(decoded_data)
     
+    # Save primary slots configuration
+    primary_slots = int(root.findall("machine/cpuInterface/primarySlots")[0].text)
+    slot0 =  primary_slots & 0b00000011
+    slot1 = (primary_slots & 0b00001100) >> 2
+    slot2 = (primary_slots & 0b00110000) >> 4
+    slot3 = (primary_slots & 0b11000000) >> 6
+    
+    if slot0 == 0:
+        raise NotImplementedError("ROM is slot 0")
+    if slot1 == 0:
+        raise NotImplementedError("ROM is slot 1")
+    
     # Overwrite IM code
     im_seek = get_reubicated_offset(symbols["IM_CODE"], END_NON_REUBICATED_CODE, CART_START, START_REUBICATED_CODE)
     f.seek(im_seek)
