@@ -19,7 +19,7 @@ include 'headers/bios.asm'
 
 ; z80asm rom_with_system.asm --label=symbols_with_system.txt -o rom.rom && openmsx -machine turbor rom.rom
 
-org 0x8000
+org 0x4000
 CART_START:
 
 ; MSX Cartridge header
@@ -38,6 +38,145 @@ include 'memory.asm'
 start:
     di
     
+    call set_subslots
+    
+    ; Set the following configuration:
+    ;
+    ; Page 0: RAM segments
+    ; Page 1: CART code
+    ; Page 2: CART segments
+    ; page 3: RAM segments
+    call prepare_slots
+    
+    ; Copy page 1 (ROM) to page 0 (RAM), segment 2
+    ld de, 0x0
+    ld hl, 0x4000
+    ld bc, 0x4000
+    ldir
+    ;
+    call rom2ram + 0x4000 ; + 0x4000 to execute in page 3
+    
+    ld sp, MY_STACK_END
+    
+    ; Now page 2 (our code) is RAM
+    
+    ; Page 0: RAM segments
+    ; Page 1: CART segments
+    ; Page 2: CART code
+    ; page 3: RAM segments
+    
+
+
+
+    ; *** Page 0: RAM segment 4
+    
+    ld a, (SLOTS)
+    and 00000011b
+    
+    ld a, 1
+    or a ; DEBUG
+    
+    jr nz, no_rom_p0
+    
+    ; ROM in page 0. Copy our own ROM
+    ld a, 4
+    out (0xfc + 3), a ; Segment 4 in page 3
+
+    in a, (0xa8)
+    push af ; Backup original slot config
+
+    and 11111100b
+    out (0xa8), a
+    
+    ld hl, 0
+    ld de, 0xc000
+    ld bc, 0x4000 - 1
+    ldir
+    
+    pop af ; Recover original slot config
+    out (0xa8), a 
+
+no_rom_p0:
+    ; No ROM selected in page 0. Copy game's page 0
+    ld a, 4
+    out (0xfc + 0), a ; Segment 4 in page 0
+
+
+    ld a, 2
+    ld de, 0x0
+    call ldir_two_segments
+    
+
+no_rom_p1:
+    ; No ROM selected in page 1. Copy game's page 1
+    ld a, 
+    out (0xfc + 0), a ; Segment 4 in page 0
+
+
+    ld a, 2
+    ld de, 0x0
+    call ldir_two_segments
+
+    jp $
+    
+    
+    
+    ;in a, (0xa8)
+    ;and 00111111b
+    ;or  01000000b
+    ;out (0xa8), a; Set page 3 to ROM also
+    
+    
+    
+    
+    ; Choose this memory configuration
+    ;       33221100
+    ;       ││││││└┴─ Page 0 (#0000-#3FFF) --> 3 (RAM)
+    ;       ││││└┴─── Page 1 (#4000-#7FFF) --> 1 (CART SEGMENT)
+    ;       ││└┴───── Page 2 (#8000-#BFFF) --> 1 (CART CODE)
+    ;       └┴─────── Page 3 (#C000-#FFFF) --> 3 (RAM)
+    in a, (0xa8)
+    and 11110000b ; Keep only pages 3 and 2
+    ld b, a       ; B contains only original pages 3 and 2
+    
+    ld a, (SLOTS)
+    and 00001111b ; A contains only chosen pages 1 and 0
+    
+    or b ; A = original pages 3 and 2 + chosen pages 1 and 0
+    
+    out (0xa8), a
+    
+    ; Now the ROM(s) is selected in page 0 and perhaps also page 1.
+    ; Page 2 is the cartridge, and page 3 is RAM
+    
+    ; We need to convert page 2 (ROM) into RAM, with the same contents
+
+    
+    
+    
+rom2ram:
+    in a, (0xa8)
+    
+    and 11000000b
+    srl a
+    srl a
+    srl a
+    srl a
+    ld b, a ; B = Slot of page 3 moved to page 1 bits
+
+    in a, (0xa8)
+    and 11110011b
+    or b ; Put slot of page 3 in page 1
+    out (0xa8), a
+    
+    ; Copy data back, now in RAM
+    ld de, 0x4000
+    ld hl, 0x0
+    ld bc, 0x4000
+    ldir
+    ret
+
+set_subslots:
     ; Obtain which subslot is selected in page 3, and set the same for the
     ; rest of the sublots.
 
@@ -77,15 +216,16 @@ start:
     ;and 11110000b ; Subslot 0 in pages 0 and 1        SLOTS: db 10100000b
     
     ld (0xFFFF), a
+    ret
     
+prepare_slots:
     ; Set the following configuration:
     ;
     ; Page 0: RAM segments
-    ; Page 1: CART segments
-    ; Page 2: CART code
-    ; page 3: RAM segments
-    
-    in a, (0xa8)
+    ; Page 1: CART code
+    ; Page 2: CART segments
+    ; page 3: RAM segments 
+    in a, (0xa8) ; 33.22.11.00
     srl a
     srl a
     srl a
@@ -97,117 +237,51 @@ start:
     in a, (0xa8)
     and 11111100b    
     or b ; A = ooooooSS (o = original)
-    out (0xa8), a
+    out (0xa8), a ; Page 0 has now the same RAM slot than page 3
+    
+    ; Now put page 2 in the same ROM slot
     
     in a, (0xa8)
-    and 00110000b
+    and 00001100b
     srl a
     srl a
-    srl a
-    srl a
     
-    ld b, a ; B = 000000SS, slot of page 2
-    
-    in a, (0xa8)
-    and 11110011b
-    sla b
-    sla b
-    or b ; A = ooooSSoo (o = original)
-    out (0xa8), a
-    
-
-    ; Convert page 2 (ROM) into RAM with the same contents
-    
-    ; Copy page 2 (ROM) to page 3 (RAM), segment 2
-    ld de, 0xc000
-    ld hl, 0x8000
-    ld bc, 0x4000 - 1
-    ldir
-    
-    call rom2ram + 0x4000 ; + 0x4000 to execute in page 3
-    
-    ; Now page 2 (our code) is RAM
-    
-    ; Let's use page 0 as RAM
-    ; Let's use page 1 as CART SEGMENT
-    
-    
-    
-    
-    in a, (0xa8)
-    and 00111111b
-    or  01000000b
-    out (0xa8), a; Set page 3 to ROM also
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    ; Choose this memory configuration
-    ;       33221100
-    ;       ││││││└┴─ Page 0 (#0000-#3FFF) --> 3 (RAM)
-    ;       ││││└┴─── Page 1 (#4000-#7FFF) --> 1 (CART SEGMENT)
-    ;       ││└┴───── Page 2 (#8000-#BFFF) --> 1 (CART CODE)
-    ;       └┴─────── Page 3 (#C000-#FFFF) --> 3 (RAM)
-    in a, (0xa8)
-    and 11110000b ; Keep only pages 3 and 2
-    ld b, a       ; B contains only original pages 3 and 2
-    
-    ld a, (SLOTS)
-    and 00001111b ; A contains only chosen pages 1 and 0
-    
-    or b ; A = original pages 3 and 2 + chosen pages 1 and 0
-    
-    out (0xa8), a
-    
-    ; Now the ROM(s) is selected in page 0 and perhaps also page 1.
-    ; Page 2 is the cartridge, and page 3 is RAM
-    
-    ; We need to convert page 2 (ROM) into RAM, with the same contents
-
-    
-    jp $
-    
-    rom2ram:
-    in a, (0xa8)
-    
-    and 11000000b
-    srl a
-    srl a
-    ld b, a ; B = Slot of page 3 moved to page 2 bits
+    ld b, a ; B = 000000SS, slot of page 1
     
     in a, (0xa8)
     and 11001111b
-    or b ; Put slot of page 3 in page 2
+    sla b
+    sla b
+    sla b
+    sla b
+    or b ; A = ooSSoooo (o = original)
     out (0xa8), a
+    ret
     
-    ; Copy back page 3 into page 2 (which now is RAM)
-    ld de, 0x8000
-    ld hl, 0xc000
+set_two_segments_P8000:
+    ; A: segment. It'll also choose segment A+1
+    ld (Seg_P8000_SW), a ; 0x4000 - 0x5FFF
+    inc a
+    ld (Seg_P8000_SW), a ; 0x6000 - 0x7FFF
+    ret
+
+ldir_two_segments:
+    ; a, a+1: segments
+    ; de: destination
+    ; hl: origin
+    ; bc: number of bytes
+    call set_two_segments_P8000
+    ld hl, Seg_P8000_SW
     ld bc, 0x4000
     ldir
     ret
 
-    db 10, 0
+    ds 10, 0
     MY_STACK_END:
     
     SLOTS: db 10100000b
+    
+    BUFFER_0: db 0
 
 
 

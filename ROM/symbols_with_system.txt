@@ -19,6 +19,7 @@ BOTTOM:	equ $fc48
 BRDATR:	equ $fcb2
 BREAKX:	equ $00b7
 BUF:	equ $f55e
+BUFFER_0:	equ $410d
 BUFMIN:	equ $f55d
 CALATR:	equ $0087
 CALBAS:	equ $0159
@@ -26,13 +27,13 @@ CALLF:	equ $0030
 CALPAT:	equ $0084
 CALSLT:	equ $001c
 CAPST:	equ $fcab
-CART_START:	equ $8000
+CART_START:	equ $4000
 CASPRV:	equ $fcb1
 CENCNT:	equ $f933
 CGPBAS:	equ $f924
 CGPNT:	equ $f91f
 CGTABL:	equ $0004
-CHANGE_SEGMENTS:	equ $8018
+CHANGE_SEGMENTS:	equ $4018
 CHGCAP:	equ $0132
 CHGCLR:	equ $0062
 CHGET:	equ $009f
@@ -284,7 +285,7 @@ INIPLT:	equ $0141
 INIT32:	equ $006f
 INITIO:	equ $003b
 INITXT:	equ $006c
-INIT_MEMORY:	equ $8010
+INIT_MEMORY:	equ $4010
 INLIN:	equ $00b1
 INSFLG:	equ $fca8
 INTCNT:	equ $fca2
@@ -319,7 +320,7 @@ LPTPOS:	equ $f415
 LPTSTT:	equ $00a8
 LSTCOM:	equ $fb1f
 LSTMOD:	equ $fb20
-MAIN_CODE_END:	equ $80bb
+MAIN_CODE_END:	equ $410e
 MAXDEL:	equ $f92f
 MAXFIL:	equ $f85f
 MAXUPD:	equ $f3ec
@@ -339,7 +340,7 @@ MLTNAM:	equ $f3d1
 MLTPAT:	equ $f3d9
 MODE:	equ $fafc
 MUSICF:	equ $fb3f
-MY_STACK_END:	equ $80ba
+MY_STACK_END:	equ $410c
 NAMBAS:	equ $f922
 NEWKEY:	equ $fbe5
 NEWPAD:	equ $01ad
@@ -439,7 +440,7 @@ SETT32:	equ $007b
 SETTXT:	equ $0078
 SETWRT:	equ $0053
 SKPCNT:	equ $f94f
-SLOTS:	equ $80ba
+SLOTS:	equ $410c
 SLTATR:	equ $fcc9
 SLTTBL:	equ $fcc5
 SLTWRK:	equ $fd09
@@ -510,5 +511,10 @@ WRTVRM:	equ $004d
 WSLREG:	equ $013b
 XSAVE:	equ $fafe
 YSAVE:	equ $fb00
-rom2ram:	equ $809c
-start:	equ $8024
+ldir_two_segments:	equ $40f6
+no_rom_p0:	equ $405f
+prepare_slots:	equ $40bf
+rom2ram:	equ $407b
+set_subslots:	equ $409b
+set_two_segments_P8000:	equ $40ee
+start:	equ $4024

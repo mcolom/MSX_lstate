@@ -293,7 +293,7 @@ ORG START_REUBICATED_CODE
     ds 6*2, 0
     
     ;MY_STACK:
-    db 10, 0
+    ds 10, 0
     MY_STACK_END:
     
 write_vdp_reg:
