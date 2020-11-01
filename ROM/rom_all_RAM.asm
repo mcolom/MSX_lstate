@@ -14,11 +14,6 @@
 ; this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 ; Place, Suite 330, Boston, MA  02111-1307  USA
 
-; Compile and test:
-; z80asm rom.asm --label=symbols.txt -o rom.rom && openmsx -machine devel rom.rom
-
-; z80asm rom.asm --label=symbols.txt -o rom.rom && ./stt2rom.py ~/.openMSX/savestates/bounder.oms && openmsx -machine devel rom.rom
-
 ; Include MSX BIOS and system variables definitions
 include 'headers/bios.asm'
 
@@ -244,16 +239,32 @@ ORG START_REUBICATED_CODE
     ;       ││││└┴─── Page 1 (#4000-#7FFF) --> 3 (RAM)
     ;       ││└┴───── Page 2 (#8000-#BFFF) --> 1 (CART SEGMENT)
     ;       └┴─────── Page 3 (#C000-#FFFF) --> 3 (RAM)
+    
+    ;slot0 =  primary_slots & 0b00000011
+    ;slot1 = (primary_slots & 0b00001100) >> 2
+    ;slot2 = (primary_slots & 0b00110000) >> 4
+    ;slot3 = (primary_slots & 0b11000000) >> 6
+
+    ld a, (SLOTS)
+    and 00000011b
+    jr nz, no_rom_p0
+    
+    no_rom_p0:
+    ld a, (SLOTS)
+    and 00001100b
+    jr nz, no_rom_p1
+
+
+    ;;;
+
+    no_rom_p1:
     ld a, 11011111b
     out (0xa8), a
     
-    ;
-
     ld a, 2 ; Segment 2-3: game's page 0
     ld de, 0x0
 
-    after_page0_fix1:
-    ld bc, after_page0_fix1
+    ld bc, $
     ld hl, 0x8000
     call ldir_two_segments
     
@@ -270,6 +281,8 @@ ORG START_REUBICATED_CODE
     ;       ││││└┴─── Page 1 (#4000-#7FFF) --> 3 (RAM)
     ;       ││└┴───── Page 2 (#8000-#BFFF) --> 3 (RAM)
     ;       └┴─────── Page 3 (#C000-#FFFF) --> 3 (RAM)
+    
+    set_and_jump:
     ld a, 0xff
     out (0xa8), a
 
@@ -300,6 +313,8 @@ ORG START_REUBICATED_CODE
     ;MY_STACK:
     db 10, 0
     MY_STACK_END:
+    
+    SLOTS: db 00000011b
 
 
 write_vdp_reg:
