@@ -240,24 +240,6 @@ ORG START_REUBICATED_CODE
     ;       ││└┴───── Page 2 (#8000-#BFFF) --> 1 (CART SEGMENT)
     ;       └┴─────── Page 3 (#C000-#FFFF) --> 3 (RAM)
     
-    ;slot0 =  primary_slots & 0b00000011
-    ;slot1 = (primary_slots & 0b00001100) >> 2
-    ;slot2 = (primary_slots & 0b00110000) >> 4
-    ;slot3 = (primary_slots & 0b11000000) >> 6
-
-    ld a, (SLOTS)
-    and 00000011b
-    jr nz, no_rom_p0
-    
-    no_rom_p0:
-    ld a, (SLOTS)
-    and 00001100b
-    jr nz, no_rom_p1
-
-
-    ;;;
-
-    no_rom_p1:
     ld a, 11011111b
     out (0xa8), a
     
@@ -314,9 +296,6 @@ ORG START_REUBICATED_CODE
     db 10, 0
     MY_STACK_END:
     
-    SLOTS: db 00000011b
-
-
 write_vdp_reg:
     ; a: reg + 128
     ; b: value
