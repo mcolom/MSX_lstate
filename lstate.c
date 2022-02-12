@@ -29,6 +29,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 // Panasonic_FS-A1GT OK
 
 //#define DEBUG
+
 #define NUM_PUSHES 11
 #define LEN_CODE 20
 
@@ -36,7 +37,8 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 #define H_TIMI 0xFD9F
 
 #define EXTBIO 0xFFCA
-#define CALL_HL 70001$
+
+#define CALL_HL jp (hl)
 
 // Warning: execution fails when the buffers are put inside main.
 // In main they're in the stack space, and here it's global.
@@ -195,9 +197,9 @@ void main(char *argv[], int argc) {
   //rom_selected_p0 = 0;
   //rom_selected_p1 = 0;
   
-  // Allocate segment if MSX DOS 2.
-  // Hardcode them in MSX DOS 2.
-  
+  // Allocate segment if MSX DOS 2 or higher
+  // Hardcode them otherwise
+
   if (GetOSVersion() >= 2) {
       // Allocate segments
       /*	Parameter:	A = 0
@@ -220,28 +222,28 @@ void main(char *argv[], int argc) {
           
           xor a
           ld b, a // A=0, B=0
-          call CALL_HL // ALL_SEG
+          CALL_HL // ALL_SEG
           
           ld iy, #_segments
           ld 0 (iy), a
           //
           xor a
           ld b, a // A=0, B=0
-          call CALL_HL // ALL_SEG
+          CALL_HL // ALL_SEG
           
           ld iy, #_segments
           ld 1 (iy), a
           //
           xor a
           ld b, a // A=0, B=0
-          call CALL_HL // ALL_SEG
+          CALL_HL // ALL_SEG
           
           ld iy, #_segments
           ld 2 (iy), a
           //
           xor a
           ld b, a // A=0, B=0
-          call CALL_HL // ALL_SEG
+          CALL_HL // ALL_SEG
 
           ld iy, #_segments
           ld 3 (iy), a
@@ -250,11 +252,6 @@ void main(char *argv[], int argc) {
           pop hl
           pop de
           pop af
-          jp 70002$ // Get out
-
-    CALL_HL:
-        jp (hl)
-    70002$:
       __endasm;
   }
   else {
@@ -278,9 +275,6 @@ void main(char *argv[], int argc) {
           else
               from = buffer; // If IM = 2 actually we don't care about overwritting
 
-          #ifdef DEBUG
-          printf("Copy to "); PrintHex((unsigned int)to); printf("\r\n");
-          #endif
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
           MemCopy(to, from, sizeof(buffer));
           
@@ -303,7 +297,6 @@ void main(char *argv[], int argc) {
       VDPwrite(i, VDP_regs[i]);
 
   // Zero VRAM
-  #ifndef DEBUG
   unsigned char VRAM_Kb = GetVramSize();
   FillVram(0, 0, VRAM_Kb*1024);
 
@@ -312,7 +305,6 @@ void main(char *argv[], int argc) {
       Read(fH, buffer, sizeof(buffer));
       CopyRamToVram(buffer, i, sizeof(buffer));
   }
-  #endif
   
   
   Close(fH);
@@ -321,7 +313,6 @@ void main(char *argv[], int argc) {
   // Put page 2 of the game (segments[2]) in our page 2
   // Put page 1 of the game (segments[1]) in our page 1
   // Page 0 not yet, since it's where we're executing now!
-  #ifndef DEBUG
   __asm
   di
   
@@ -335,7 +326,6 @@ void main(char *argv[], int argc) {
   ld a, 1 (iy)
   out (0xFD), a
  __endasm;
- #endif
  
   // Patch the original code on its page 3.
   // Be careful not to overwrite the stack!
@@ -379,11 +369,6 @@ void main(char *argv[], int argc) {
   #ifdef DEBUG
   printf("new_game_slots = %d\r\n", new_game_slots);
   #endif
-  
-  #ifdef DEBUG
-  return;
-  #endif
-
 
   if (rom_selected_p0 || rom_selected_p1) {
       *ptr++ = 0x3E;
