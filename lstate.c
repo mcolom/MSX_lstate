@@ -1,4 +1,5 @@
 // 
+// 
 // Load MSX1 state from openMSX in MSX2 machines
 // (c) Miguel Colom, 2020
 // GNU GPL license
@@ -28,7 +29,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 // Panasonic_FS-A1ST BAD
 // Panasonic_FS-A1GT OK
 
-//#define DEBUG
+//#define DEBUG_LSTATE
 
 #define NUM_PUSHES 11
 #define LEN_CODE 20
@@ -39,6 +40,9 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 #define EXTBIO 0xFFCA
 
 #define CALL_HL jp (hl)
+
+// For some unknown reason, with the original PrintHex some games won't work
+#define PrintHex(s) printf("%x", s)
 
 // Warning: execution fails when the buffers are put inside main.
 // In main they're in the stack space, and here it's global.
@@ -200,6 +204,10 @@ void main(char *argv[], int argc) {
   // Allocate segment if MSX DOS 2 or higher
   // Hardcode them otherwise
 
+  #ifdef DEBUG_LSTATE
+  printf("GetOSVersion() == %d\r\n", GetOSVersion());
+  #endif
+
   if (GetOSVersion() >= 2) {
       // Allocate segments
       /*	Parameter:	A = 0
@@ -262,7 +270,16 @@ void main(char *argv[], int argc) {
   // Read RAM
   for (i = 0; i < 4; i++) {
       segment = segments[i];
+      
+      #ifdef DEBUG_LSTATE
+      printf("\r\n\r\n");
+      #endif
+      
       printf("Filling segment %d\r", segment);
+
+      #ifdef DEBUG_LSTATE
+      printf("\r\n");
+      #endif
 
       to = (unsigned char *)0x8000;
 
@@ -270,10 +287,18 @@ void main(char *argv[], int argc) {
           Read(fH, buffer, sizeof(buffer));
 
           // Don't overwritte MSX-DOS variables area
-          if (rom_selected_p0 && regs.im != 2 && segment == segments[3] && j >= 14)
+          if (rom_selected_p0 && regs.im != 2 && segment == segments[3] && j >= 14) {
               from = (unsigned char *)(0xC000 + j*sizeof(buffer));
-          else
+              #ifdef DEBUG_LSTATE
+              printf("A");
+              #endif
+          }
+          else {
               from = buffer; // If IM = 2 actually we don't care about overwritting
+              #ifdef DEBUG_LSTATE
+              printf("B");
+              #endif
+             }
 
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
           MemCopy(to, from, sizeof(buffer));
@@ -283,11 +308,28 @@ void main(char *argv[], int argc) {
           if (rom_selected_p0 && segment == segments[3] && j == 15) {
               MemCopy((unsigned char*)(to + H_TIMI % sizeof(buffer)), (unsigned char*)(buffer + H_TIMI % sizeof(buffer)), 3);
               MemCopy((unsigned char*)(to + H_KEYI % sizeof(buffer)), (unsigned char*)(buffer + H_KEYI % sizeof(buffer)), 3);
+              #ifdef DEBUG_LSTATE
+              printf("C");
+              #endif
+
           }
+          else
+              #ifdef DEBUG_LSTATE
+              printf("D");
+              #endif
           
           to += sizeof(buffer);
       }
   }
+  
+  printf("\r\n");
+
+  #ifdef DEBUG_LSTATE
+  printf("\r\nPress a key...\r\n");
+  Getche();
+  #endif
+  
+  
   
   
   
@@ -332,13 +374,13 @@ void main(char *argv[], int argc) {
   if (regs.sp >= 0xC000) {
       ptr_origin = (unsigned char *)regs.sp - (NUM_PUSHES)*2 - LEN_CODE; // In page 3: perfect, just adjust with respect to SP to prevent overlapping
       
-      #ifdef DEBUG
+      #ifdef DEBUG_LSTATE
       printf("A) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
       #endif
       
       // If game's SP is too close to our MSX-DOS1 SP = initial_SP (= 0xDFC8 in tests), pick a different location for our code
       if (regs.sp - initial_SP < 0x100) {
-          #ifdef DEBUG
+          #ifdef DEBUG_LSTATE
           printf("B) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
           #endif
           
@@ -347,9 +389,13 @@ void main(char *argv[], int argc) {
   }
   else {
       ptr_origin = (unsigned char *)0xF000; // In a different page: we can't access it. Choose a high position in our page 3 and pray :D
+      #ifdef DEBUG_LSTATE
+      printf("PRAY, LOL\r\n");
+      #endif
+
   }
   
-  #ifdef DEBUG
+  #ifdef DEBUG_LSTATE
   printf("C) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
   #endif
   
@@ -366,7 +412,7 @@ void main(char *argv[], int argc) {
   if (rom_selected_p1) new_game_slots &= 0b11110011;
   
   
-  #ifdef DEBUG
+  #ifdef DEBUG_LSTATE
   printf("new_game_slots = %d\r\n", new_game_slots);
   #endif
 
