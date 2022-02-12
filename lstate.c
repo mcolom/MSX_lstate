@@ -160,6 +160,7 @@ void main(char *argv[], int argc) {
   __asm
       ld (_initial_SP), SP
   __endasm;
+  
   printf("Current SP="); PrintHex(initial_SP); printf("\r\n");
 
 
@@ -347,14 +348,14 @@ void main(char *argv[], int argc) {
       Read(fH, buffer, sizeof(buffer));
       CopyRamToVram(buffer, i, sizeof(buffer));
   }
-  
-  
+
   Close(fH);
 
   // Put page 3 of the game (segments[3]]) in our page 3
   // Put page 2 of the game (segments[2]) in our page 2
   // Put page 1 of the game (segments[1]) in our page 1
   // Page 0 not yet, since it's where we're executing now!
+  
   __asm
   di
   
@@ -369,6 +370,9 @@ void main(char *argv[], int argc) {
   out (0xFD), a
  __endasm;
  
+  // From here we SHOULD NOT use any functions which call MSXDOS.
+  // Use the prints only for debugging!
+ 
   // Patch the original code on its page 3.
   // Be careful not to overwrite the stack!
   if (regs.sp >= 0xC000) {
@@ -379,6 +383,7 @@ void main(char *argv[], int argc) {
       #endif
       
       // If game's SP is too close to our MSX-DOS1 SP = initial_SP (= 0xDFC8 in tests), pick a different location for our code
+      // In FPGA: D9F6
       if (regs.sp - initial_SP < 0x100) {
           #ifdef DEBUG_LSTATE
           printf("B) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
@@ -441,7 +446,7 @@ void main(char *argv[], int argc) {
           *ptr++ = 0xFD; // OUT (0xFD), A
       }
   } else {
-      // Set segments[0]for page 0
+      // Set segments[0] for page 0
       *ptr++ = 0x3E;
       *ptr++ = segments[0]; // LD A, START_SEGMENT
       //
@@ -463,6 +468,7 @@ void main(char *argv[], int argc) {
   *ptr++ = (char)(((unsigned int)regs.pc & 0x00FF));
   *ptr++ = (char)(((unsigned int)regs.pc & 0xFF00) >> 8);
   // JP to the game's original PC
+  
 
 // Prepare registers and jump to our code in game's page.
 // There are NUM_PUSHES pushes
