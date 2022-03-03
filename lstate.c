@@ -42,7 +42,7 @@ Place, Suite 330, Boston, MA  02111-1307  USA
 #define CALL_HL jp (hl)
 
 // For some unknown reason, with the original PrintHex some games won't work
-#define PrintHex(s) printf("%x", s)
+//#define PrintHex(s) printf("%x", s)
 
 // Warning: execution fails when the buffers are put inside main.
 // In main they're in the stack space, and here it's global.
@@ -161,7 +161,7 @@ void main(char *argv[], int argc) {
       ld (_initial_SP), SP
   __endasm;
   
-  printf("Current SP="); PrintHex(initial_SP); printf("\r\n");
+  printf("Current SP=%x\r\n", initial_SP);
 
 
   //debug set_watchpoint read_io 0x2E
@@ -169,25 +169,14 @@ void main(char *argv[], int argc) {
   
   Read(fH, &regs, sizeof(Regs));
   
-  printf("af=");   PrintHex(regs.af);
-  printf(", bc="); PrintHex(regs.bc);
-  printf(", de="); PrintHex(regs.de);
-  printf(", hl="); PrintHex(regs.hl);
-  //
-  printf(", ix="); PrintHex(regs.ix);
-  printf(", iy="); PrintHex(regs.iy);
-  printf(", pc="); PrintHex(regs.pc);
-  printf(", sp="); PrintHex(regs.sp);
-  //
-  printf(", af2="); PrintHex(regs.af2);
-  printf(", bc2="); PrintHex(regs.bc2);
-  printf(", de2="); PrintHex(regs.de2);
-  printf(", hl2="); PrintHex(regs.hl2);
-  //
-  printf(", iff1="); PrintHex(regs.iff1);
-  printf(", im="); PrintHex(regs.im);
-  printf(", i="); PrintHex(regs.i);
-  printf("\r\n");
+  printf("af=%x, bc=%x, de=%x, hl=%x, ix=%x, iy=%x, pc=%x, sp=%x, ",
+      regs.af, regs.bc, regs.de, regs.hl, regs.ix, regs.iy, regs.pc, regs.sp);
+
+  printf("af2=%x, bc2=%x, de2=%x, hl2=%x, ",
+      regs.af2, regs.bc2, regs.de2, regs.hl2);
+
+  printf("iff1=%x, im=%x, i=%d\r\n",
+      regs.iff1, regs.im, regs.i);
   
   // Read primary slots config
   Read(fH, &slots, sizeof(slots));
