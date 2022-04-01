@@ -276,7 +276,7 @@ void main(char *argv[], int argc) {
       for (j = 0; j < 16*1024 / sizeof(buffer); j++) {
           Read(fH, buffer, sizeof(buffer));
 
-          // Don't overwritte MSX-DOS variables area
+          // Don't overwrite MSX-DOS variables area
           if (rom_selected_p0 && regs.im != 2 && segment == segments[3] && j >= 14) {
               from = (unsigned char *)(0xC000 + j*sizeof(buffer));
               #ifdef DEBUG_LSTATE
@@ -284,7 +284,7 @@ void main(char *argv[], int argc) {
               #endif
           }
           else {
-              from = buffer; // If IM = 2 actually we don't care about overwritting
+              from = buffer; // If IM = 2 actually we don't care about overwriting
               #ifdef DEBUG_LSTATE
               printf("B");
               #endif
