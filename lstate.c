@@ -86,6 +86,12 @@ unsigned char *to;
 unsigned char rom_selected_p0, rom_selected_p1;
 unsigned char new_game_slots;
 
+const unsigned int msx1_palette[] = {0x000, 0x000, 0x522, 0x633, 0x116, 0x337, \
+                                     0x252, 0x636, 0x262, 0x373, 0x552, 0x663, \
+                                     0x422, 0x255, 0x555, 0x666};
+
+
+
 void init_files() {
     // It's mandatory to do this to use files!
     FCBs();
@@ -323,6 +329,30 @@ void main(char *argv[], int argc) {
   // Zero VRAM
   unsigned char VRAM_Kb = GetVramSize();
   FillVram(0, 0, VRAM_Kb*1024);
+  
+  // Set palette similar to MSX1.
+  // See:
+  // http://map.grauw.nl/resources/video/v9938/v9938.xhtml#app-8
+  // https://github.com/openMSX/openMSX/blob/master/src/video/VDP.cc
+__asm
+    ld hl, #_msx1_palette
+
+	ld	a, #0x98
+	ld	c, a
+    // Prepare to write register data from color 0
+	inc	c
+	xor a
+	di
+	out (c), a
+    // Write register #16
+	ld  a, #0x90
+	ei
+	out (c), a
+    // Writes palette data (16 color * 2 bytes)
+	ld	b, #32
+	inc	c
+	otir
+__endasm;
 
   // Dump 64 Kb of VRAM
   for (i = 0; i < 16*1024; i += sizeof(buffer)) {
@@ -353,7 +383,7 @@ void main(char *argv[], int argc) {
   out (0xFD), a
  __endasm;
  #endif
- 
+
   // From here we SHOULD NOT use any functions which call MSXDOS.
   // Use the prints only for debugging!
  
@@ -388,13 +418,11 @@ void main(char *argv[], int argc) {
   #ifdef DEBUG_LSTATE
   printf("C) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
   #endif
-
-  // Change SP now to prevent ovewritting the actual game's
-  // data in page 3 with our stack writes
+  
   __asm
   ld sp, (_regs + 7*2)  // SP
   __endasm;
-  
+
   
   ptr = ptr_origin;
   
