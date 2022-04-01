@@ -198,7 +198,7 @@ void main(char *argv[], int argc) {
   printf("GetOSVersion() == %d\r\n", GetOSVersion());
   #endif
 
-  if (GetOSVersion() >= 2) {
+  if (GetOSVersion() >= 2 && 0) { // Better to avoid it. It might hang with some MSX-DOS (?)
       // Allocate segments
       /*	Parameter:	A = 0
                 D = 4 (device number of mapper support)
@@ -292,7 +292,7 @@ void main(char *argv[], int argc) {
 
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
           MemCopy(to, from, sizeof(buffer));
-          
+
           // If rom_selected_p0, we need to copy the
           // H.KEYI and H.TIMI hooks the game configured
           if (rom_selected_p0 && segment == segments[3] && j == 15) {
@@ -314,16 +314,8 @@ void main(char *argv[], int argc) {
   
   printf("\r\n");
 
-  #ifdef DEBUG_LSTATE
-  printf("\r\nPress a key...\r\n");
-  Getche();
-  #endif
-  
-  
-  
-  
-  
   // Set the 8 VDP regs.
+  #ifndef DEBUG_LSTATE
   Read(fH, VDP_regs, 8);
   for (i = 0; i < 8; i++)
       VDPwrite(i, VDP_regs[i]);
@@ -337,6 +329,7 @@ void main(char *argv[], int argc) {
       Read(fH, buffer, sizeof(buffer));
       CopyRamToVram(buffer, i, sizeof(buffer));
   }
+  #endif
 
   Close(fH);
 
@@ -345,6 +338,7 @@ void main(char *argv[], int argc) {
   // Put page 1 of the game (segments[1]) in our page 1
   // Page 0 not yet, since it's where we're executing now!
   
+  #ifndef DEBUG_LSTATE
   __asm
   di
   
@@ -358,6 +352,7 @@ void main(char *argv[], int argc) {
   ld a, 1 (iy)
   out (0xFD), a
  __endasm;
+ #endif
  
   // From here we SHOULD NOT use any functions which call MSXDOS.
   // Use the prints only for debugging!
@@ -372,7 +367,8 @@ void main(char *argv[], int argc) {
       #endif
       
       // If game's SP is too close to our MSX-DOS1 SP = initial_SP (= 0xDFC8 in tests), pick a different location for our code
-      // In FPGA: D9F6
+      // In FPGA:                              D9F6
+      // In Panasonic_FS-A1ST -ext Carnivore2: D9F6
       if (regs.sp - initial_SP < 0x100) {
           #ifdef DEBUG_LSTATE
           printf("B) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
@@ -392,6 +388,12 @@ void main(char *argv[], int argc) {
   #ifdef DEBUG_LSTATE
   printf("C) Using ptr_origin = "); PrintHex((unsigned int)ptr_origin); printf("\r\n");
   #endif
+
+  // Change SP now to prevent ovewritting the actual game's
+  // data in page 3 with our stack writes
+  __asm
+  ld sp, (_regs + 7*2)  // SP
+  __endasm;
   
   
   ptr = ptr_origin;
@@ -457,12 +459,12 @@ void main(char *argv[], int argc) {
   *ptr++ = (char)(((unsigned int)regs.pc & 0x00FF));
   *ptr++ = (char)(((unsigned int)regs.pc & 0xFF00) >> 8);
   // JP to the game's original PC
-  
 
 // Prepare registers and jump to our code in game's page.
 // There are NUM_PUSHES pushes
-InPort(0x2E); // DEBUG
 __asm
+  in a, (0x2E) // debug
+
   ld sp, (_regs + 7*2)  // SP
   
   ld a, (_regs + 14*2) // I

@@ -91,7 +91,7 @@ with open(args.out_filename, "wb") as f:
     ram_base64 = ram[0].text
 
     decoded_data = zlib.decompress(base64.b64decode(ram_base64))
-    decoded_data = decoded_data.replace(b'\x31\x00\x00', b'\x31\xff\xff') # Patch LD SP, 0x0000 with LD SP, 0xFFFF
+    #decoded_data = decoded_data.replace(b'\x31\x00\x00', b'\x31\xff\xff') # Patch LD SP, 0x0000 with LD SP, 0xFFFF
     f.write(decoded_data)
     
     subslot_p0 = (decoded_data[-1] & 0b00000011)
