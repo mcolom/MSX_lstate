@@ -335,6 +335,7 @@ void main(char *argv[], int argc) {
   // http://map.grauw.nl/resources/video/v9938/v9938.xhtml#app-8
   // https://github.com/openMSX/openMSX/blob/master/src/video/VDP.cc
 __asm
+	di
     ld hl, #_msx1_palette
 
 	ld	a, #0x98
@@ -342,16 +343,15 @@ __asm
     // Prepare to write register data from color 0
 	inc	c
 	xor a
-	di
 	out (c), a
     // Write register #16
 	ld  a, #0x90
-	ei
 	out (c), a
     // Writes palette data (16 color * 2 bytes)
 	ld	b, #32
 	inc	c
 	otir
+	ei
 __endasm;
 
   // Dump 64 Kb of VRAM
@@ -381,6 +381,8 @@ __endasm;
 
   ld a, 1 (iy)
   out (0xFD), a
+  
+  ei
  __endasm;
  #endif
 
