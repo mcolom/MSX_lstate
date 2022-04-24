@@ -204,15 +204,15 @@ void main(char *argv[], int argc) {
   printf("GetOSVersion() == %d\r\n", GetOSVersion());
   #endif
 
-  if (GetOSVersion() >= 2 && 0) { // Better to avoid it. It might hang with some MSX-DOS (?)
+  /*if (GetOSVersion() >= 2) { // Better to avoid it. It might hang with some MSX-DOS (?)
       // Allocate segments
-      /*	Parameter:	A = 0
-                D = 4 (device number of mapper support)
-                E = 1
-        Result:		A = slot address of primary mapper
-                DE = reserved
-                HL = start address of mapper variable table
-      */
+      //	Parameter:	A = 0
+      //          D = 4 (device number of mapper support)
+      //          E = 1
+      //  Result:		A = slot address of primary mapper
+      //          DE = reserved
+      //          HL = start address of mapper variable table
+      //
       __asm
           push af
           push de
@@ -258,10 +258,10 @@ void main(char *argv[], int argc) {
           pop af
       __endasm;
   }
-  else {
+  else {*/
       for (i = 0; i < 4; i++)
           segments[i] = i + 4;
-  }
+  /* } */
 
   // Read RAM
   for (i = 0; i < 4; i++) {
@@ -325,6 +325,10 @@ void main(char *argv[], int argc) {
   Read(fH, VDP_regs, 8);
   for (i = 0; i < 8; i++)
       VDPwrite(i, VDP_regs[i]);
+
+  // Set image to 313p with interlacing and 50.15 Hz
+  // This avoids that European MSX 1 games sound too fast.
+  VDPwrite(9, 2);
 
   // Zero VRAM
   unsigned char VRAM_Kb = GetVramSize();
