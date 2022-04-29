@@ -92,7 +92,7 @@ const unsigned int msx1_palette[] = {0x000, 0x000, 0x522, 0x633, 0x116, 0x337, \
                                      0x252, 0x636, 0x262, 0x373, 0x552, 0x663, \
                                      0x422, 0x255, 0x555, 0x666};
 
-
+unsigned char protect_system_vars;
 
 void init_files() {
     // It's mandatory to do this to use files!
@@ -148,8 +148,8 @@ void main(char *argv[], int argc) {
       Exit(0);
       return;
   }
-  
-  int protect_system_vars = (argc == 2);
+
+  protect_system_vars = (argc == 2);
   if (protect_system_vars)
       printf("Protecting system vars.\r\n");
   
