@@ -289,7 +289,9 @@ void main(char *argv[], int argc) {
           Read(fH, buffer, sizeof(buffer));
 
           // Don't overwrite MSX-DOS variables area
-          if (protect_system_vars && regs.im != 2 && segment == segments[3] && j >= 14) {
+          if ((rom_selected_p0 || rom_selected_p1 || protect_system_vars) && regs.im != 2
+                                                                          && segment == segments[3]
+                                                                          && j >= 14) {
               from = (unsigned char *)(0xC000 + j*sizeof(buffer));
               #ifdef DEBUG_LSTATE
               printf("A");
@@ -308,7 +310,7 @@ void main(char *argv[], int argc) {
 
           // If rom_selected_p0, we need to copy the
           // H.KEYI and H.TIMI hooks the game configured
-          if (segment == segments[3] && j == 15) {
+          if ((rom_selected_p0 || protect_system_vars) && segment == segments[3] && j == 15) {
               MemCopy((unsigned char*)(to + H_TIMI % sizeof(buffer)), (unsigned char*)(buffer + H_TIMI % sizeof(buffer)), 3);
               MemCopy((unsigned char*)(to + H_KEYI % sizeof(buffer)), (unsigned char*)(buffer + H_KEYI % sizeof(buffer)), 3);
               #ifdef DEBUG_LSTATE
