@@ -1,3 +1,5 @@
+// 20:18:09 {master} ~/progs/retro/MSX_lstate$ ./compile.sh && cp Fusion-C-v1.2/Working\ Folder/dsk_miguel/l2.com ~/msx/juegos/mios/01\ -\ La\ Abadía\ del\ Crimen/stt/ && openmsx -machine Sony_HB-F1XDmk2 -ext Carnivore2 -diska ~/msx/juegos/mios/01\ -\ La\ Abadía\ del\ Crimen/stt/
+
 // 
 // 
 // Load MSX1 state from openMSX in MSX2 machines
@@ -141,11 +143,15 @@ void print_slot_config() {
 void main(char *argv[], int argc) {
   printf("Load MSX1 state\r\nGNU GPL by mcolom, 2020\r\n\r\n");
   
-  if (argc != 1) {
-      printf("Please specify the state file\r\n");
+  if (argc > 2) {
+      printf("Please specify the state file and optionally the option to protect system vars.\r\n");
       Exit(0);
       return;
   }
+  
+  int protect_system_vars = (argc == 2);
+  if (protect_system_vars)
+      printf("Protecting system vars.\r\n");
   
   // Copy argv to buffer. It can't be done after init()
   NStrCopy(buffer, argv[0], sizeof(buffer)-1);
@@ -283,25 +289,26 @@ void main(char *argv[], int argc) {
           Read(fH, buffer, sizeof(buffer));
 
           // Don't overwrite MSX-DOS variables area
-          if (rom_selected_p0 && regs.im != 2 && segment == segments[3] && j >= 14) {
+          if (protect_system_vars && regs.im != 2 && segment == segments[3] && j >= 14) {
               from = (unsigned char *)(0xC000 + j*sizeof(buffer));
               #ifdef DEBUG_LSTATE
               printf("A");
               #endif
           }
           else {
-              from = buffer; // If IM = 2 actually we don't care about overwriting
+              // If IM = 2 actually we don't care about overwriting
+              from = buffer;
               #ifdef DEBUG_LSTATE
               printf("B");
               #endif
-             }
+          }
 
           OutPort(0xFE, segment); // FE (write) Mapper segment for page 2 (#8000-#BFFF)
           MemCopy(to, from, sizeof(buffer));
 
           // If rom_selected_p0, we need to copy the
           // H.KEYI and H.TIMI hooks the game configured
-          if (rom_selected_p0 && segment == segments[3] && j == 15) {
+          if (segment == segments[3] && j == 15) {
               MemCopy((unsigned char*)(to + H_TIMI % sizeof(buffer)), (unsigned char*)(buffer + H_TIMI % sizeof(buffer)), 3);
               MemCopy((unsigned char*)(to + H_KEYI % sizeof(buffer)), (unsigned char*)(buffer + H_KEYI % sizeof(buffer)), 3);
               #ifdef DEBUG_LSTATE
